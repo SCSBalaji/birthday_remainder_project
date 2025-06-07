@@ -28,11 +28,8 @@ export default function App() {
   const [birthdays, setBirthdays] = useState(defaultBirthdays);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ name: "", date: "", relationship: "", bio: "" });
-
-  // NEW: Delete handler
-  function handleDeleteBirthday(id) {
-    setBirthdays(birthdays.filter((b) => b.id !== id));
-  }
+  const [editId, setEditId] = useState(null); // NEW: which birthday is being edited
+  const [toDeleteId, setToDeleteId] = useState(null);
 
   // Sort birthdays by how soon they are coming
   const sortedBirthdays = [...birthdays].sort(
@@ -54,18 +51,65 @@ export default function App() {
   function handleAddBirthday(e) {
     e.preventDefault();
     if (!form.name || !form.date) return;
-    setBirthdays([
-      ...birthdays,
-      {
-        id: Date.now(),
-        name: form.name,
-        date: form.date,
-        relationship: form.relationship,
-        bio: form.bio,
-      },
-    ]);
+    if (editId) {
+      // Edit mode: update existing
+      setBirthdays(birthdays.map(b =>
+        b.id === editId
+          ? { ...b, ...form }
+          : b
+      ));
+    } else {
+      // Add mode: create new
+      setBirthdays([
+        ...birthdays,
+        {
+          id: Date.now(),
+          name: form.name,
+          date: form.date,
+          relationship: form.relationship,
+          bio: form.bio,
+        },
+      ]);
+    }
     setForm({ name: "", date: "", relationship: "", bio: "" });
     setShowForm(false);
+    setEditId(null);
+  }
+
+  function handleEditClick(birthday) {
+    setForm({
+      name: birthday.name,
+      date: birthday.date,
+      relationship: birthday.relationship || "",
+      bio: birthday.bio || ""
+    });
+    setShowForm(true);
+    setEditId(birthday.id);
+  }
+
+  function handleDeleteClick(id) {
+    setToDeleteId(id);
+  }
+
+  function confirmDelete() {
+    setBirthdays(birthdays.filter((b) => b.id !== toDeleteId));
+    setToDeleteId(null);
+    // If you were editing this birthday, close form
+    if (editId === toDeleteId) {
+      setShowForm(false);
+      setEditId(null);
+      setForm({ name: "", date: "", relationship: "", bio: "" });
+    }
+  }
+
+  function cancelDelete() {
+    setToDeleteId(null);
+  }
+
+  function handleFormCancel() {
+    setShowForm(false);
+    setEditId(null);
+    setForm({ name: "", date: "", relationship: "", bio: "" });
   }
 
   // Background style
@@ -105,7 +149,7 @@ export default function App() {
           <span role="img" aria-label="Cake">🎂</span> Birthday Buddy
         </h1>
         <button
-          onClick={() => setShowForm(true)}
+          onClick={() => { setShowForm(true); setEditId(null); setForm({ name: "", date: "", relationship: "", bio: "" }); }}
           style={{
             background: "linear-gradient(90deg, #ff6ec4 0%, #7873f5 100%)",
             color: "#fff",
@@ -126,7 +170,7 @@ export default function App() {
         </button>
       </div>
 
-      {/* ADD BIRTHDAY FORM (MODAL-LIKE CENTERED CARD) */}
+      {/* ADD/EDIT BIRTHDAY FORM (MODAL-LIKE CENTERED CARD) */}
       {showForm && (
         <div style={{
           position: "fixed",
@@ -160,7 +204,8 @@ export default function App() {
               alignItems: "center",
               gap: 10
             }}>
-              <span role="img" aria-label="Cake">🎂</span> Add Birthday
+              <span role="img" aria-label="Cake">🎂</span>
+              {editId ? "Edit Birthday" : "Add Birthday"}
             </h2>
             <div style={{ width: "100%", marginBottom: 14 }}>
               <label style={{ display: "block", marginBottom: 4, fontWeight: 500 }}>Name</label>
@@ -273,11 +318,11 @@ export default function App() {
                 gap: 12
               }}
             >
-              <span style={{ fontSize: 18 }}>✔</span> Add Birthday
+              <span style={{ fontSize: 18 }}>✔</span> {editId ? "Save Changes" : "Add Birthday"}
             </button>
             <button
               type="button"
-              onClick={() => setShowForm(false)}
+              onClick={handleFormCancel}
               style={{
                 width: "100%",
                 padding: "8px 0",
@@ -294,6 +339,73 @@ export default function App() {
               Cancel
             </button>
           </form>
+        </div>
+      )}
+
+      {/* CONFIRMATION DIALOG */}
+      {toDeleteId !== null && (
+        <div style={{
+          position: "fixed",
+          top: 0, left: 0, width: "100vw", height: "100vh",
+          background: "rgba(0,0,0,0.55)",
+          zIndex: 100,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center"
+        }}>
+          <div
+            style={{
+              background: "#1a1133",
+              padding: "30px 28px 24px 28px",
+              borderRadius: 14,
+              boxShadow: "0 8px 32px #0008",
+              minWidth: 320,
+              maxWidth: 380,
+              color: "#fff",
+              textAlign: "center"
+            }}
+          >
+            <div style={{ fontSize: 32, marginBottom: 6 }}>🗑️</div>
+            <div style={{ fontWeight: 700, fontSize: 20, marginBottom: 10 }}>
+              Delete this birthday?
+            </div>
+            <div style={{ fontSize: 16, marginBottom: 22, opacity: 0.8 }}>
+              Are you sure you want to delete this birthday? This action cannot be undone.
+            </div>
+            <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
+              <button
+                onClick={confirmDelete}
+                style={{
+                  background: "linear-gradient(90deg, #ff6ec4 0%, #7873f5 100%)",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 7,
+                  padding: "10px 24px",
+                  fontWeight: 700,
+                  fontSize: 15,
+                  cursor: "pointer"
+                }}
+              >
+                Yes, Delete
+              </button>
+              <button
+                onClick={cancelDelete}
+                style={{
+                  background: "#29214a",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 7,
+                  padding: "10px 24px",
+                  fontWeight: 700,
+                  fontSize: 15,
+                  cursor: "pointer",
+                  opacity: 0.85
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -477,7 +589,7 @@ export default function App() {
             >
               {/* Delete Button (top right of card) */}
               <button
-                onClick={() => handleDeleteBirthday(b.id)}
+                onClick={() => handleDeleteClick(b.id)}
                 title="Delete"
                 style={{
                   position: "absolute",
@@ -494,6 +606,26 @@ export default function App() {
                 }}
               >
                 🗑️
+              </button>
+              {/* Edit Button (top right, left of delete) */}
+              <button
+                onClick={() => handleEditClick(b)}
+                title="Edit"
+                style={{
+                  position: "absolute",
+                  top: 10,
+                  right: 44,
+                  border: "none",
+                  background: "transparent",
+                  color: "#1fd1f9",
+                  fontSize: 20,
+                  cursor: "pointer",
+                  padding: 0,
+                  lineHeight: 1,
+                  filter: "drop-shadow(0 2px 4px #0007)"
+                }}
+              >
+                ✏️
               </button>
               <div
                 style={{
