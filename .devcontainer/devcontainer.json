@@ -1,0 +1,16 @@
+{
+  "name": "Birthday Reminder Dev Container",
+  "dockerComposeFile": "../docker-compose.yml",
+  "service": "server",
+  "workspaceFolder": "/usr/src/app",
+  "settings": {
+    "terminal.integrated.defaultProfile.linux": "bash"
+  },
+  "extensions": [
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode"
+  ],
+  "forwardPorts": [5000, 3306],
+  "postCreateCommand": "npm install",
+  "remoteUser": "node"
+}
