@@ -499,6 +499,7 @@ export default function App() {
               year={calendarYear}
               month={calendarMonth}
               birthdays={birthdays}
+              today={new Date()}
               onPrev={() => {
                 if (calendarMonth === 0) {
                   setCalendarMonth(11);
@@ -514,6 +515,11 @@ export default function App() {
                 } else {
                   setCalendarMonth(calendarMonth + 1);
                 }
+              }}
+              onToday={() => {
+                const now = new Date();
+                setCalendarMonth(now.getMonth());
+                setCalendarYear(now.getFullYear());
               }}
             />
           </div>
