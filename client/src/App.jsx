@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { mockBirthdays as defaultBirthdays } from "./mockBirthdays";
+import CalendarView from "./CalendarView";
 
 const RELATIONSHIP_OPTIONS = [
   "Family",
@@ -7,6 +8,16 @@ const RELATIONSHIP_OPTIONS = [
   "Colleague",
   "Partner",
   "Other"
+];
+
+// NEW: Sort options
+const SORT_OPTIONS = [
+  { value: "soonest", label: "Soonest Birthday" },
+  { value: "az", label: "Name (A–Z)" },
+  { value: "za", label: "Name (Z–A)" },
+  { value: "relationship", label: "Relationship (A–Z)" },
+  { value: "oldest", label: "Oldest First" },
+  { value: "youngest", label: "Youngest First" },
 ];
 
 function daysUntil(dateStr) {
@@ -31,9 +42,16 @@ export default function App() {
   const [editId, setEditId] = useState(null);
   const [toDeleteId, setToDeleteId] = useState(null);
 
+  // NEW: Calendar state
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [calendarMonth, setCalendarMonth] = useState(new Date().getMonth());
+  const [calendarYear, setCalendarYear] = useState(new Date().getFullYear());
+
   // NEW: Search and filter state
   const [search, setSearch] = useState("");
   const [filterRelationship, setFilterRelationship] = useState("");
+  // NEW: Sort state
+  const [sortOption, setSortOption] = useState("soonest");
 
   // Filter and sort birthdays
   const filteredBirthdays = birthdays.filter(b =>
@@ -43,9 +61,24 @@ export default function App() {
     ) &&
     (!filterRelationship || b.relationship === filterRelationship)
   );
-  const sortedBirthdays = [...filteredBirthdays].sort(
-    (a, b) => daysUntil(a.date) - daysUntil(b.date)
-  );
+  // NEW: Sorting logic
+  const sortedBirthdays = [...filteredBirthdays].sort((a, b) => {
+    switch (sortOption) {
+      case "az":
+        return a.name.localeCompare(b.name);
+      case "za":
+        return b.name.localeCompare(a.name);
+      case "relationship":
+        return (a.relationship || "").localeCompare(b.relationship || "");
+      case "oldest":
+        return new Date(a.date) - new Date(b.date);
+      case "youngest":
+        return new Date(b.date) - new Date(a.date);
+      case "soonest":
+      default:
+        return daysUntil(a.date) - daysUntil(b.date);
+    }
+  });
 
   const nextBirthday = sortedBirthdays[0] || {};
   const total = birthdays.length;
@@ -160,26 +193,48 @@ export default function App() {
         }}>
           <span role="img" aria-label="Cake">🎂</span> Birthday Buddy
         </h1>
-        <button
-          onClick={() => { setShowForm(true); setEditId(null); setForm({ name: "", date: "", relationship: "", bio: "" }); }}
-          style={{
-            background: "linear-gradient(90deg, #ff6ec4 0%, #7873f5 100%)",
-            color: "#fff",
-            border: "none",
-            borderRadius: 8,
-            padding: "10px 26px",
-            fontSize: 16,
-            fontWeight: 600,
-            boxShadow: "0 2px 8px #0002",
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            marginLeft: 16
-          }}>
-          <span role="img" aria-label="Cake">🎂</span>
-          Add Birthday
-        </button>
+        <div style={{ display: "flex", gap: 10 }}>
+          <button
+            onClick={() => setShowCalendar(!showCalendar)}
+            style={{
+              background: showCalendar ? "#fff" : "linear-gradient(90deg, #ff6ec4 0%, #7873f5 100%)",
+              color: showCalendar ? "#7b38f7" : "#fff",
+              border: "none",
+              borderRadius: 8,
+              padding: "10px 18px",
+              fontWeight: 600,
+              fontSize: 15,
+              marginRight: 10,
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              cursor: "pointer"
+            }}
+          >
+            <span role="img" aria-label="Calendar">📅</span>
+            {showCalendar ? "Birthday List" : "View Calendar"}
+          </button>
+          <button
+            onClick={() => { setShowForm(true); setEditId(null); setForm({ name: "", date: "", relationship: "", bio: "" }); }}
+            style={{
+              background: "linear-gradient(90deg, #ff6ec4 0%, #7873f5 100%)",
+              color: "#fff",
+              border: "none",
+              borderRadius: 8,
+              padding: "10px 26px",
+              fontSize: 16,
+              fontWeight: 600,
+              boxShadow: "0 2px 8px #0002",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              marginLeft: 16
+            }}>
+            <span role="img" aria-label="Cake">🎂</span>
+            Add Birthday
+          </button>
+        </div>
       </div>
 
       {/* ADD/EDIT BIRTHDAY FORM (MODAL-LIKE CENTERED CARD) */}
@@ -428,340 +483,397 @@ export default function App() {
           boxSizing: "border-box",
         }}
       >
-        {/* TOP SECTION: Coming Up Next & Stats */}
-        <div
-          style={{
-            display: "flex",
-            flexWrap: "wrap",
-            gap: 32,
-            marginBottom: 32,
-            alignItems: "stretch",
-            width: "100%",
-          }}
-        >
-          {/* Left: Coming Up Next */}
-          <div
-            style={{
-              flex: "2 1 400px",
-              minWidth: 340,
+        {showCalendar ? (
+          <div style={{ marginTop: 12 }}>
+            <h2 style={{
+              color: "#ffb4fc",
+              margin: "18px 0 18px 0",
               display: "flex",
-              flexDirection: "column",
-              gap: 24,
-            }}
-          >
-            <h2 style={{ color: "#ffb4fc", margin: 0 }}>Coming Up Next</h2>
-            <div
-              style={{
-                background: "linear-gradient(90deg, #b621fe 0%, #1fd1f9 100%)",
-                borderRadius: 16,
-                padding: 32,
-                color: "#fff",
-                display: "flex",
-                flexDirection: "column",
-                minHeight: 200,
-                boxShadow: "0 8px 32px #0004",
-                width: "100%",
-              }}
-            >
-              <div
-                style={{
-                  fontSize: 36,
-                  fontWeight: 700,
-                  marginBottom: 8,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 12,
-                }}
-              >
-                <span role="img" aria-label="Cake">🎂</span>
-                {nextBirthday && nextBirthday.date ? daysUntil(nextBirthday.date) : "--"} Days
-              </div>
-              <div style={{ fontSize: 20, fontWeight: 600 }}>
-                {nextBirthday?.name ? `${nextBirthday.name}'s Birthday` : "--"}
-              </div>
-              <div style={{ fontSize: 14, opacity: 0.85 }}>
-                {nextBirthday?.date ? formatDate(nextBirthday.date) : "--"}
-              </div>
-              <div style={{ margin: "18px 0 0 0", fontSize: 16 }}>
-                {nextBirthday?.bio || ""}
-              </div>
-              <div style={{ marginTop: 18, display: "flex", gap: 12 }}>
-                <button
-                  style={{
-                    background: "#fff",
-                    color: "#b621fe",
-                    border: "none",
-                    borderRadius: 6,
-                    padding: "8px 20px",
-                    fontWeight: 600,
-                    cursor: "pointer",
-                  }}
-                >
-                  Send Gift
-                </button>
-                <button
-                  style={{
-                    background: "#fff",
-                    color: "#1fd1f9",
-                    border: "none",
-                    borderRadius: 6,
-                    padding: "8px 20px",
-                    fontWeight: 600,
-                    cursor: "pointer",
-                  }}
-                >
-                  Set Reminder
-                </button>
-              </div>
-            </div>
-          </div>
-          {/* Right: Stats */}
-          <div
-            style={{
-              flex: "1 1 240px",
-              minWidth: 200,
-              display: "flex",
-              flexDirection: "column",
-              gap: 18,
-              justifyContent: "center",
-            }}
-          >
-            <div
-              style={{
-                background: "#fff2",
-                borderRadius: 10,
-                padding: 18,
-                textAlign: "center",
-                fontWeight: 700,
-                fontSize: 20,
-                width: "100%",
-              }}
-            >
-              <div style={{ fontSize: 26 }}>{total}</div>
-              <div style={{ fontSize: 15, fontWeight: 400 }}>Total</div>
-            </div>
-            <div
-              style={{
-                background: "#ffb4fc44",
-                borderRadius: 10,
-                padding: 18,
-                textAlign: "center",
-                fontWeight: 700,
-                fontSize: 20,
-                width: "100%",
-              }}
-            >
-              <div style={{ fontSize: 26 }}>{thisMonth}</div>
-              <div style={{ fontSize: 15, fontWeight: 400 }}>This Month</div>
-            </div>
-            <div
-              style={{
-                background: "#1fd1f944",
-                borderRadius: 10,
-                padding: 18,
-                textAlign: "center",
-                fontWeight: 700,
-                fontSize: 20,
-                width: "100%",
-              }}
-            >
-              <div style={{ fontSize: 26 }}>{next7Days}</div>
-              <div style={{ fontSize: 15, fontWeight: 400 }}>Next 7 Days</div>
-            </div>
-          </div>
-        </div>
-
-        {/* SEARCH & FILTER CONTROLS */}
-        <div style={{
-          display: "flex",
-          gap: 18,
-          marginBottom: 18,
-          alignItems: "center",
-          flexWrap: "wrap"
-        }}>
-          <input
-            type="text"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Search by name or notes..."
-            style={{
-              padding: "10px 18px",
-              borderRadius: 7,
-              border: "none",
-              fontSize: 15,
-              background: "#29214a",
-              color: "#fff",
-              outline: "none",
-              width: 240,
-              minWidth: 120,
-              marginRight: 6
-            }}
-          />
-          <select
-            value={filterRelationship}
-            onChange={e => setFilterRelationship(e.target.value)}
-            style={{
-              padding: "10px 14px",
-              borderRadius: 7,
-              border: "none",
-              fontSize: 15,
-              background: "#29214a",
-              color: "#fff",
-              outline: "none",
-              minWidth: 120
-            }}
-          >
-            <option value="">All Relationships</option>
-            {RELATIONSHIP_OPTIONS.map(rel => (
-              <option key={rel} value={rel}>{rel}</option>
-            ))}
-          </select>
-          {(search || filterRelationship) && (
-            <button
-              style={{
-                background: "none",
-                color: "#ffb4fc",
-                border: "none",
-                fontSize: 15,
-                fontWeight: 700,
-                cursor: "pointer",
-                marginLeft: 6,
-                textDecoration: "underline"
-              }}
-              onClick={() => { setSearch(""); setFilterRelationship(""); }}
-            >
-              Reset
-            </button>
-          )}
-        </div>
-
-        {/* UPCOMING BIRTHDAYS */}
-        <h2 style={{ color: "#ffb4fc", marginTop: 16 }}>Upcoming Birthdays</h2>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
-            gap: 24,
-            marginTop: 14,
-            width: "100%",
-          }}
-        >
-          {sortedBirthdays.length === 0 ? (
-            <div style={{
-              gridColumn: "1/-1",
-              background: "#22223b",
-              borderRadius: 12,
-              padding: 32,
-              color: "#fff",
-              textAlign: "center"
+              alignItems: "center",
+              gap: 7
             }}>
-              No birthdays found.
-            </div>
-          ) : (
-            sortedBirthdays.map((b, i) => (
+              <span role="img" aria-label="Calendar">📅</span>
+              Birthday Calendar
+            </h2>
+            <CalendarView
+              year={calendarYear}
+              month={calendarMonth}
+              birthdays={birthdays}
+              onPrev={() => {
+                if (calendarMonth === 0) {
+                  setCalendarMonth(11);
+                  setCalendarYear(calendarYear - 1);
+                } else {
+                  setCalendarMonth(calendarMonth - 1);
+                }
+              }}
+              onNext={() => {
+                if (calendarMonth === 11) {
+                  setCalendarMonth(0);
+                  setCalendarYear(calendarYear + 1);
+                } else {
+                  setCalendarMonth(calendarMonth + 1);
+                }
+              }}
+            />
+          </div>
+        ) : (
+          <>
+            {/* TOP SECTION: Coming Up Next & Stats */}
+            <div
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: 32,
+                marginBottom: 32,
+                alignItems: "stretch",
+                width: "100%",
+              }}
+            >
+              {/* Left: Coming Up Next */}
               <div
-                key={b.id}
                 style={{
-                  background: "#22223b",
-                  borderRadius: 12,
-                  padding: 22,
-                  color: "#fff",
-                  boxShadow: "0 4px 24px #0003",
+                  flex: "2 1 400px",
+                  minWidth: 340,
                   display: "flex",
                   flexDirection: "column",
-                  alignItems: "flex-start",
-                  width: "100%",
-                  position: "relative"
+                  gap: 24,
                 }}
               >
-                {/* Delete Button */}
-                <button
-                  onClick={() => handleDeleteClick(b.id)}
-                  title="Delete"
-                  style={{
-                    position: "absolute",
-                    top: 10,
-                    right: 10,
-                    border: "none",
-                    background: "transparent",
-                    color: "#ff6ec4",
-                    fontSize: 20,
-                    cursor: "pointer",
-                    padding: 0,
-                    lineHeight: 1,
-                    filter: "drop-shadow(0 2px 4px #0007)"
-                  }}
-                >
-                  🗑️
-                </button>
-                {/* Edit Button */}
-                <button
-                  onClick={() => handleEditClick(b)}
-                  title="Edit"
-                  style={{
-                    position: "absolute",
-                    top: 10,
-                    right: 44,
-                    border: "none",
-                    background: "transparent",
-                    color: "#1fd1f9",
-                    fontSize: 20,
-                    cursor: "pointer",
-                    padding: 0,
-                    lineHeight: 1,
-                    filter: "drop-shadow(0 2px 4px #0007)"
-                  }}
-                >
-                  ✏️
-                </button>
+                <h2 style={{ color: "#ffb4fc", margin: 0 }}>Coming Up Next</h2>
                 <div
                   style={{
+                    background: "linear-gradient(90deg, #b621fe 0%, #1fd1f9 100%)",
+                    borderRadius: 16,
+                    padding: 32,
+                    color: "#fff",
                     display: "flex",
-                    alignItems: "center",
-                    gap: 12,
-                    marginBottom: 4,
+                    flexDirection: "column",
+                    minHeight: 200,
+                    boxShadow: "0 8px 32px #0004",
+                    width: "100%",
                   }}
                 >
-                  <span style={{ fontSize: 28 }}>🎁</span>
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: 18 }}>{b.name}</div>
-                    <div style={{ fontSize: 13, opacity: 0.85 }}>
-                      <span role="img" aria-label="calendar">
-                        📅
-                      </span>{" "}
-                      {formatDate(b.date)}
-                    </div>
-                    <div style={{ fontSize: 12, opacity: 0.7, marginTop: 2 }}>
-                      {b.relationship || ""}
-                    </div>
+                  <div
+                    style={{
+                      fontSize: 36,
+                      fontWeight: 700,
+                      marginBottom: 8,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 12,
+                    }}
+                  >
+                    <span role="img" aria-label="Cake">🎂</span>
+                    {nextBirthday && nextBirthday.date ? daysUntil(nextBirthday.date) : "--"} Days
+                  </div>
+                  <div style={{ fontSize: 20, fontWeight: 600 }}>
+                    {nextBirthday?.name ? `${nextBirthday.name}'s Birthday` : "--"}
+                  </div>
+                  <div style={{ fontSize: 14, opacity: 0.85 }}>
+                    {nextBirthday?.date ? formatDate(nextBirthday.date) : "--"}
+                  </div>
+                  <div style={{ margin: "18px 0 0 0", fontSize: 16 }}>
+                    {nextBirthday?.bio || ""}
+                  </div>
+                  <div style={{ marginTop: 18, display: "flex", gap: 12 }}>
+                    <button
+                      style={{
+                        background: "#fff",
+                        color: "#b621fe",
+                        border: "none",
+                        borderRadius: 6,
+                        padding: "8px 20px",
+                        fontWeight: 600,
+                        cursor: "pointer",
+                      }}
+                    >
+                      Send Gift
+                    </button>
+                    <button
+                      style={{
+                        background: "#fff",
+                        color: "#1fd1f9",
+                        border: "none",
+                        borderRadius: 6,
+                        padding: "8px 20px",
+                        fontWeight: 600,
+                        cursor: "pointer",
+                      }}
+                    >
+                      Set Reminder
+                    </button>
                   </div>
                 </div>
+              </div>
+              {/* Right: Stats */}
+              <div
+                style={{
+                  flex: "1 1 240px",
+                  minWidth: 200,
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 18,
+                  justifyContent: "center",
+                }}
+              >
                 <div
                   style={{
-                    margin: "12px 0 6px 0",
-                    fontSize: 15,
-                    opacity: 0.9,
+                    background: "#fff2",
+                    borderRadius: 10,
+                    padding: 18,
+                    textAlign: "center",
+                    fontWeight: 700,
+                    fontSize: 20,
+                    width: "100%",
                   }}
                 >
-                  {b.bio}
+                  <div style={{ fontSize: 26 }}>{total}</div>
+                  <div style={{ fontSize: 15, fontWeight: 400 }}>Total</div>
                 </div>
                 <div
                   style={{
-                    marginTop: 6,
-                    background: "#b621fe",
-                    display: "inline-block",
-                    borderRadius: 6,
-                    padding: "4px 12px",
-                    fontWeight: 600,
-                    fontSize: 13,
+                    background: "#ffb4fc44",
+                    borderRadius: 10,
+                    padding: 18,
+                    textAlign: "center",
+                    fontWeight: 700,
+                    fontSize: 20,
+                    width: "100%",
                   }}
                 >
-                  In {daysUntil(b.date)} days
+                  <div style={{ fontSize: 26 }}>{thisMonth}</div>
+                  <div style={{ fontSize: 15, fontWeight: 400 }}>This Month</div>
+                </div>
+                <div
+                  style={{
+                    background: "#1fd1f944",
+                    borderRadius: 10,
+                    padding: 18,
+                    textAlign: "center",
+                    fontWeight: 700,
+                    fontSize: 20,
+                    width: "100%",
+                  }}
+                >
+                  <div style={{ fontSize: 26 }}>{next7Days}</div>
+                  <div style={{ fontSize: 15, fontWeight: 400 }}>Next 7 Days</div>
                 </div>
               </div>
-            ))
-          )}
-        </div>
+            </div>
+
+            {/* SEARCH, FILTER & SORT CONTROLS */}
+            <div style={{
+              display: "flex",
+              gap: 18,
+              marginBottom: 18,
+              alignItems: "center",
+              flexWrap: "wrap"
+            }}>
+              <input
+                type="text"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Search by name or notes..."
+                style={{
+                  padding: "10px 18px",
+                  borderRadius: 7,
+                  border: "none",
+                  fontSize: 15,
+                  background: "#29214a",
+                  color: "#fff",
+                  outline: "none",
+                  width: 240,
+                  minWidth: 120,
+                  marginRight: 6
+                }}
+              />
+              <select
+                value={filterRelationship}
+                onChange={e => setFilterRelationship(e.target.value)}
+                style={{
+                  padding: "10px 14px",
+                  borderRadius: 7,
+                  border: "none",
+                  fontSize: 15,
+                  background: "#29214a",
+                  color: "#fff",
+                  outline: "none",
+                  minWidth: 120
+                }}
+              >
+                <option value="">All Relationships</option>
+                {RELATIONSHIP_OPTIONS.map(rel => (
+                  <option key={rel} value={rel}>{rel}</option>
+                ))}
+              </select>
+              {/* NEW: Sort Dropdown */}
+              <select
+                value={sortOption}
+                onChange={e => setSortOption(e.target.value)}
+                style={{
+                  padding: "10px 14px",
+                  borderRadius: 7,
+                  border: "none",
+                  fontSize: 15,
+                  background: "#29214a",
+                  color: "#fff",
+                  outline: "none",
+                  minWidth: 140
+                }}
+              >
+                {SORT_OPTIONS.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+              {(search || filterRelationship || sortOption !== "soonest") && (
+                <button
+                  style={{
+                    background: "none",
+                    color: "#ffb4fc",
+                    border: "none",
+                    fontSize: 15,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    marginLeft: 6,
+                    textDecoration: "underline"
+                  }}
+                  onClick={() => { setSearch(""); setFilterRelationship(""); setSortOption("soonest"); }}
+                >
+                  Reset
+                </button>
+              )}
+            </div>
+
+            {/* UPCOMING BIRTHDAYS */}
+            <h2 style={{ color: "#ffb4fc", marginTop: 16 }}>Upcoming Birthdays</h2>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+                gap: 24,
+                marginTop: 14,
+                width: "100%",
+              }}
+            >
+              {sortedBirthdays.length === 0 ? (
+                <div style={{
+                  gridColumn: "1/-1",
+                  background: "#22223b",
+                  borderRadius: 12,
+                  padding: 32,
+                  color: "#fff",
+                  textAlign: "center"
+                }}>
+                  No birthdays found.
+                </div>
+              ) : (
+                sortedBirthdays.map((b, i) => (
+                  <div
+                    key={b.id}
+                    style={{
+                      background: "#22223b",
+                      borderRadius: 12,
+                      padding: 22,
+                      color: "#fff",
+                      boxShadow: "0 4px 24px #0003",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "flex-start",
+                      width: "100%",
+                      position: "relative"
+                    }}
+                  >
+                    {/* Delete Button */}
+                    <button
+                      onClick={() => handleDeleteClick(b.id)}
+                      title="Delete"
+                      style={{
+                        position: "absolute",
+                        top: 10,
+                        right: 10,
+                        border: "none",
+                        background: "transparent",
+                        color: "#ff6ec4",
+                        fontSize: 20,
+                        cursor: "pointer",
+                        padding: 0,
+                        lineHeight: 1,
+                        filter: "drop-shadow(0 2px 4px #0007)"
+                      }}
+                    >
+                      🗑️
+                    </button>
+                    {/* Edit Button */}
+                    <button
+                      onClick={() => handleEditClick(b)}
+                      title="Edit"
+                      style={{
+                        position: "absolute",
+                        top: 10,
+                        right: 44,
+                        border: "none",
+                        background: "transparent",
+                        color: "#1fd1f9",
+                        fontSize: 20,
+                        cursor: "pointer",
+                        padding: 0,
+                        lineHeight: 1,
+                        filter: "drop-shadow(0 2px 4px #0007)"
+                      }}
+                    >
+                      ✏️
+                    </button>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 12,
+                        marginBottom: 4,
+                      }}
+                    >
+                      <span style={{ fontSize: 28 }}>🎁</span>
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: 18 }}>{b.name}</div>
+                        <div style={{ fontSize: 13, opacity: 0.85 }}>
+                          <span role="img" aria-label="calendar">
+                            📅
+                          </span>{" "}
+                          {formatDate(b.date)}
+                        </div>
+                        <div style={{ fontSize: 12, opacity: 0.7, marginTop: 2 }}>
+                          {b.relationship || ""}
+                        </div>
+                      </div>
+                    </div>
+                    <div
+                      style={{
+                        margin: "12px 0 6px 0",
+                        fontSize: 15,
+                        opacity: 0.9,
+                      }}
+                    >
+                      {b.bio}
+                    </div>
+                    <div
+                      style={{
+                        marginTop: 6,
+                        background: "#b621fe",
+                        display: "inline-block",
+                        borderRadius: 6,
+                        padding: "4px 12px",
+                        fontWeight: 600,
+                        fontSize: 13,
+                      }}
+                    >
+                      In {daysUntil(b.date)} days
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
