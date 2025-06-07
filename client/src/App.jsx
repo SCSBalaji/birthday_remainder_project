@@ -28,13 +28,25 @@ export default function App() {
   const [birthdays, setBirthdays] = useState(defaultBirthdays);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ name: "", date: "", relationship: "", bio: "" });
-  const [editId, setEditId] = useState(null); // NEW: which birthday is being edited
+  const [editId, setEditId] = useState(null);
   const [toDeleteId, setToDeleteId] = useState(null);
 
-  // Sort birthdays by how soon they are coming
-  const sortedBirthdays = [...birthdays].sort(
+  // NEW: Search and filter state
+  const [search, setSearch] = useState("");
+  const [filterRelationship, setFilterRelationship] = useState("");
+
+  // Filter and sort birthdays
+  const filteredBirthdays = birthdays.filter(b =>
+    (!search ||
+      b.name.toLowerCase().includes(search.toLowerCase()) ||
+      (b.bio && b.bio.toLowerCase().includes(search.toLowerCase()))
+    ) &&
+    (!filterRelationship || b.relationship === filterRelationship)
+  );
+  const sortedBirthdays = [...filteredBirthdays].sort(
     (a, b) => daysUntil(a.date) - daysUntil(b.date)
   );
+
   const nextBirthday = sortedBirthdays[0] || {};
   const total = birthdays.length;
   const thisMonth = birthdays.filter(
@@ -409,7 +421,6 @@ export default function App() {
         </div>
       )}
 
-      {/* REST OF YOUR APP UI BELOW */}
       <div
         style={{
           width: "100%",
@@ -560,8 +571,72 @@ export default function App() {
           </div>
         </div>
 
+        {/* SEARCH & FILTER CONTROLS */}
+        <div style={{
+          display: "flex",
+          gap: 18,
+          marginBottom: 18,
+          alignItems: "center",
+          flexWrap: "wrap"
+        }}>
+          <input
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search by name or notes..."
+            style={{
+              padding: "10px 18px",
+              borderRadius: 7,
+              border: "none",
+              fontSize: 15,
+              background: "#29214a",
+              color: "#fff",
+              outline: "none",
+              width: 240,
+              minWidth: 120,
+              marginRight: 6
+            }}
+          />
+          <select
+            value={filterRelationship}
+            onChange={e => setFilterRelationship(e.target.value)}
+            style={{
+              padding: "10px 14px",
+              borderRadius: 7,
+              border: "none",
+              fontSize: 15,
+              background: "#29214a",
+              color: "#fff",
+              outline: "none",
+              minWidth: 120
+            }}
+          >
+            <option value="">All Relationships</option>
+            {RELATIONSHIP_OPTIONS.map(rel => (
+              <option key={rel} value={rel}>{rel}</option>
+            ))}
+          </select>
+          {(search || filterRelationship) && (
+            <button
+              style={{
+                background: "none",
+                color: "#ffb4fc",
+                border: "none",
+                fontSize: 15,
+                fontWeight: 700,
+                cursor: "pointer",
+                marginLeft: 6,
+                textDecoration: "underline"
+              }}
+              onClick={() => { setSearch(""); setFilterRelationship(""); }}
+            >
+              Reset
+            </button>
+          )}
+        </div>
+
         {/* UPCOMING BIRTHDAYS */}
-        <h2 style={{ color: "#ffb4fc", marginTop: 30 }}>Upcoming Birthdays</h2>
+        <h2 style={{ color: "#ffb4fc", marginTop: 16 }}>Upcoming Birthdays</h2>
         <div
           style={{
             display: "grid",
@@ -571,108 +646,121 @@ export default function App() {
             width: "100%",
           }}
         >
-          {sortedBirthdays.map((b, i) => (
-            <div
-              key={b.id}
-              style={{
-                background: "#22223b",
-                borderRadius: 12,
-                padding: 22,
-                color: "#fff",
-                boxShadow: "0 4px 24px #0003",
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "flex-start",
-                width: "100%",
-                position: "relative"
-              }}
-            >
-              {/* Delete Button (top right of card) */}
-              <button
-                onClick={() => handleDeleteClick(b.id)}
-                title="Delete"
-                style={{
-                  position: "absolute",
-                  top: 10,
-                  right: 10,
-                  border: "none",
-                  background: "transparent",
-                  color: "#ff6ec4",
-                  fontSize: 20,
-                  cursor: "pointer",
-                  padding: 0,
-                  lineHeight: 1,
-                  filter: "drop-shadow(0 2px 4px #0007)"
-                }}
-              >
-                🗑️
-              </button>
-              {/* Edit Button (top right, left of delete) */}
-              <button
-                onClick={() => handleEditClick(b)}
-                title="Edit"
-                style={{
-                  position: "absolute",
-                  top: 10,
-                  right: 44,
-                  border: "none",
-                  background: "transparent",
-                  color: "#1fd1f9",
-                  fontSize: 20,
-                  cursor: "pointer",
-                  padding: 0,
-                  lineHeight: 1,
-                  filter: "drop-shadow(0 2px 4px #0007)"
-                }}
-              >
-                ✏️
-              </button>
+          {sortedBirthdays.length === 0 ? (
+            <div style={{
+              gridColumn: "1/-1",
+              background: "#22223b",
+              borderRadius: 12,
+              padding: 32,
+              color: "#fff",
+              textAlign: "center"
+            }}>
+              No birthdays found.
+            </div>
+          ) : (
+            sortedBirthdays.map((b, i) => (
               <div
+                key={b.id}
                 style={{
+                  background: "#22223b",
+                  borderRadius: 12,
+                  padding: 22,
+                  color: "#fff",
+                  boxShadow: "0 4px 24px #0003",
                   display: "flex",
-                  alignItems: "center",
-                  gap: 12,
-                  marginBottom: 4,
+                  flexDirection: "column",
+                  alignItems: "flex-start",
+                  width: "100%",
+                  position: "relative"
                 }}
               >
-                <span style={{ fontSize: 28 }}>🎁</span>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: 18 }}>{b.name}</div>
-                  <div style={{ fontSize: 13, opacity: 0.85 }}>
-                    <span role="img" aria-label="calendar">
-                      📅
-                    </span>{" "}
-                    {formatDate(b.date)}
-                  </div>
-                  <div style={{ fontSize: 12, opacity: 0.7, marginTop: 2 }}>
-                    {b.relationship || ""}
+                {/* Delete Button */}
+                <button
+                  onClick={() => handleDeleteClick(b.id)}
+                  title="Delete"
+                  style={{
+                    position: "absolute",
+                    top: 10,
+                    right: 10,
+                    border: "none",
+                    background: "transparent",
+                    color: "#ff6ec4",
+                    fontSize: 20,
+                    cursor: "pointer",
+                    padding: 0,
+                    lineHeight: 1,
+                    filter: "drop-shadow(0 2px 4px #0007)"
+                  }}
+                >
+                  🗑️
+                </button>
+                {/* Edit Button */}
+                <button
+                  onClick={() => handleEditClick(b)}
+                  title="Edit"
+                  style={{
+                    position: "absolute",
+                    top: 10,
+                    right: 44,
+                    border: "none",
+                    background: "transparent",
+                    color: "#1fd1f9",
+                    fontSize: 20,
+                    cursor: "pointer",
+                    padding: 0,
+                    lineHeight: 1,
+                    filter: "drop-shadow(0 2px 4px #0007)"
+                  }}
+                >
+                  ✏️
+                </button>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    marginBottom: 4,
+                  }}
+                >
+                  <span style={{ fontSize: 28 }}>🎁</span>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 18 }}>{b.name}</div>
+                    <div style={{ fontSize: 13, opacity: 0.85 }}>
+                      <span role="img" aria-label="calendar">
+                        📅
+                      </span>{" "}
+                      {formatDate(b.date)}
+                    </div>
+                    <div style={{ fontSize: 12, opacity: 0.7, marginTop: 2 }}>
+                      {b.relationship || ""}
+                    </div>
                   </div>
                 </div>
+                <div
+                  style={{
+                    margin: "12px 0 6px 0",
+                    fontSize: 15,
+                    opacity: 0.9,
+                  }}
+                >
+                  {b.bio}
+                </div>
+                <div
+                  style={{
+                    marginTop: 6,
+                    background: "#b621fe",
+                    display: "inline-block",
+                    borderRadius: 6,
+                    padding: "4px 12px",
+                    fontWeight: 600,
+                    fontSize: 13,
+                  }}
+                >
+                  In {daysUntil(b.date)} days
+                </div>
               </div>
-              <div
-                style={{
-                  margin: "12px 0 6px 0",
-                  fontSize: 15,
-                  opacity: 0.9,
-                }}
-              >
-                {b.bio}
-              </div>
-              <div
-                style={{
-                  marginTop: 6,
-                  background: "#b621fe",
-                  display: "inline-block",
-                  borderRadius: 6,
-                  padding: "4px 12px",
-                  fontWeight: 600,
-                  fontSize: 13,
-                }}
-              >
-                In {daysUntil(b.date)} days
-              </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </div>
     </div>
