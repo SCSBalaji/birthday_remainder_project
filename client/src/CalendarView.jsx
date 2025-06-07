@@ -32,14 +32,12 @@ function getCalendarMatrix(year, month) {
 }
 
 export default function CalendarView({ year, month, birthdays, onPrev, onNext }) {
-  // birthdays: array of { name, date, ... }
-
-  // Map: day number => array of people
+  // Map: day number => array of people (recurring every year)
   const birthdaysByDay = useMemo(() => {
     const m = {};
     birthdays.forEach(b => {
       const d = new Date(b.date);
-      if (d.getFullYear() === year && d.getMonth() === month) {
+      if (d.getMonth() === month) { // Only check month (not year)
         const day = d.getDate();
         if (!m[day]) m[day] = [];
         m[day].push(b);
