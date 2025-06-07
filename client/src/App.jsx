@@ -1,5 +1,13 @@
-import React from "react";
-import { mockBirthdays } from "./mockBirthdays";
+import React, { useState } from "react";
+import { mockBirthdays as defaultBirthdays } from "./mockBirthdays";
+
+const RELATIONSHIP_OPTIONS = [
+  "Family",
+  "Friend",
+  "Colleague",
+  "Partner",
+  "Other"
+];
 
 function daysUntil(dateStr) {
   const today = new Date();
@@ -16,41 +24,285 @@ function formatDate(dateStr) {
   return date.toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" });
 }
 
-function App() {
-  const sortedBirthdays = [...mockBirthdays].sort(
+export default function App() {
+  const [birthdays, setBirthdays] = useState(defaultBirthdays);
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ name: "", date: "", relationship: "", bio: "" });
+
+  // NEW: Delete handler
+  function handleDeleteBirthday(id) {
+    setBirthdays(birthdays.filter((b) => b.id !== id));
+  }
+
+  // Sort birthdays by how soon they are coming
+  const sortedBirthdays = [...birthdays].sort(
     (a, b) => daysUntil(a.date) - daysUntil(b.date)
   );
-  const nextBirthday = sortedBirthdays[0];
-
-  // Stat values
-  const total = mockBirthdays.length;
-  const thisMonth = mockBirthdays.filter(
+  const nextBirthday = sortedBirthdays[0] || {};
+  const total = birthdays.length;
+  const thisMonth = birthdays.filter(
     b => new Date(b.date).getMonth() === new Date().getMonth()
   ).length;
-  const next7Days = mockBirthdays.filter(
+  const next7Days = birthdays.filter(
     b => daysUntil(b.date) <= 7
   ).length;
 
+  function handleInputChange(e) {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  }
+
+  function handleAddBirthday(e) {
+    e.preventDefault();
+    if (!form.name || !form.date) return;
+    setBirthdays([
+      ...birthdays,
+      {
+        id: Date.now(),
+        name: form.name,
+        date: form.date,
+        relationship: form.relationship,
+        bio: form.bio,
+      },
+    ]);
+    setForm({ name: "", date: "", relationship: "", bio: "" });
+    setShowForm(false);
+  }
+
+  // Background style
+  const mainBg = {
+    minHeight: "100vh",
+    background: "radial-gradient(ellipse at top left, #191970 0%, #4e0066 100%)",
+    color: "#fff",
+    fontFamily: "'Segoe UI', Arial, sans-serif",
+    margin: 0,
+    padding: 0,
+    boxSizing: "border-box",
+    width: "100vw",
+    overflowX: "hidden",
+    position: "relative"
+  };
+
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: "linear-gradient(to bottom right, #4e0066 0%, #1f005c 100%)",
-        color: "#fff",
-        fontFamily: "'Segoe UI', Arial, sans-serif",
-        margin: 0,
-        padding: 0,
-        boxSizing: "border-box",
-        width: "100vw",
-        overflowX: "hidden"
-      }}
-    >
+    <div style={mainBg}>
+      {/* HEADER */}
+      <div style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        padding: "28px 40px 0 40px",
+      }}>
+        <h1 style={{
+          fontSize: 28,
+          fontWeight: 700,
+          background: "linear-gradient(90deg, #b621fe 0%, #1fd1f9 100%)",
+          WebkitBackgroundClip: "text",
+          WebkitTextFillColor: "transparent",
+          margin: 0,
+          display: "flex",
+          alignItems: "center",
+          gap: 10
+        }}>
+          <span role="img" aria-label="Cake">🎂</span> Birthday Buddy
+        </h1>
+        <button
+          onClick={() => setShowForm(true)}
+          style={{
+            background: "linear-gradient(90deg, #ff6ec4 0%, #7873f5 100%)",
+            color: "#fff",
+            border: "none",
+            borderRadius: 8,
+            padding: "10px 26px",
+            fontSize: 16,
+            fontWeight: 600,
+            boxShadow: "0 2px 8px #0002",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            marginLeft: 16
+          }}>
+          <span role="img" aria-label="Cake">🎂</span>
+          Add Birthday
+        </button>
+      </div>
+
+      {/* ADD BIRTHDAY FORM (MODAL-LIKE CENTERED CARD) */}
+      {showForm && (
+        <div style={{
+          position: "fixed",
+          top: 0, left: 0, width: "100vw", height: "100vh",
+          background: "rgba(20, 5, 30, 0.62)",
+          zIndex: 99,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center"
+        }}>
+          <form
+            onSubmit={handleAddBirthday}
+            style={{
+              background: "#18103d",
+              padding: "32px 30px 24px 30px",
+              borderRadius: 14,
+              boxShadow: "0 8px 32px #0008",
+              minWidth: 340,
+              maxWidth: 400,
+              width: "100%",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center"
+            }}>
+            <h2 style={{
+              fontWeight: 700,
+              fontSize: 22,
+              color: "#ffb4fc",
+              marginBottom: 22,
+              display: "flex",
+              alignItems: "center",
+              gap: 10
+            }}>
+              <span role="img" aria-label="Cake">🎂</span> Add Birthday
+            </h2>
+            <div style={{ width: "100%", marginBottom: 14 }}>
+              <label style={{ display: "block", marginBottom: 4, fontWeight: 500 }}>Name</label>
+              <input
+                name="name"
+                value={form.name}
+                onChange={handleInputChange}
+                required
+                style={{
+                  width: "100%",
+                  padding: 10,
+                  borderRadius: 6,
+                  border: "none",
+                  fontSize: 15,
+                  background: "#29214a",
+                  color: "#fff",
+                  marginBottom: 8,
+                  outline: "none"
+                }}
+                placeholder="Enter person's name"
+              />
+            </div>
+            <div style={{ width: "100%", marginBottom: 14 }}>
+              <label style={{ display: "block", marginBottom: 4, fontWeight: 500 }}>Birth Date</label>
+              <input
+                name="date"
+                type="date"
+                value={form.date}
+                onChange={handleInputChange}
+                required
+                style={{
+                  width: "100%",
+                  padding: 10,
+                  borderRadius: 6,
+                  border: "none",
+                  fontSize: 15,
+                  background: "#29214a",
+                  color: "#fff",
+                  marginBottom: 8,
+                  outline: "none"
+                }}
+                placeholder="dd-mm-yyyy"
+              />
+            </div>
+            <div style={{ width: "100%", marginBottom: 14 }}>
+              <label style={{ display: "block", marginBottom: 4, fontWeight: 500 }}>Relationship</label>
+              <select
+                name="relationship"
+                value={form.relationship}
+                onChange={handleInputChange}
+                style={{
+                  width: "100%",
+                  padding: 10,
+                  borderRadius: 6,
+                  border: "none",
+                  fontSize: 15,
+                  background: "#29214a",
+                  color: "#fff",
+                  marginBottom: 8,
+                  outline: "none"
+                }}
+                required
+              >
+                <option value="">Select relationship</option>
+                {RELATIONSHIP_OPTIONS.map((rel) => (
+                  <option key={rel} value={rel}>{rel}</option>
+                ))}
+              </select>
+            </div>
+            <div style={{ width: "100%", marginBottom: 18 }}>
+              <label style={{ display: "block", marginBottom: 4, fontWeight: 500 }}>
+                Notes (Gift ideas, preferences)
+              </label>
+              <textarea
+                name="bio"
+                value={form.bio}
+                onChange={handleInputChange}
+                rows={2}
+                style={{
+                  width: "100%",
+                  padding: 10,
+                  borderRadius: 6,
+                  border: "none",
+                  fontSize: 15,
+                  background: "#29214a",
+                  color: "#fff",
+                  marginBottom: 8,
+                  outline: "none",
+                  resize: "vertical"
+                }}
+                placeholder="Add some notes about gift ideas, preferences..."
+              />
+            </div>
+            <button
+              type="submit"
+              style={{
+                width: "100%",
+                padding: "11px 0",
+                borderRadius: 7,
+                border: "none",
+                background: "linear-gradient(90deg, #ff6ec4 0%, #7873f5 100%)",
+                color: "#fff",
+                fontWeight: 700,
+                fontSize: 16,
+                cursor: "pointer",
+                marginBottom: 8,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 12
+              }}
+            >
+              <span style={{ fontSize: 18 }}>✔</span> Add Birthday
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowForm(false)}
+              style={{
+                width: "100%",
+                padding: "8px 0",
+                borderRadius: 7,
+                border: "none",
+                background: "#29214a",
+                color: "#fff",
+                fontWeight: 700,
+                fontSize: 15,
+                cursor: "pointer",
+                opacity: 0.8
+              }}
+            >
+              Cancel
+            </button>
+          </form>
+        </div>
+      )}
+
+      {/* REST OF YOUR APP UI BELOW */}
       <div
         style={{
           width: "100%",
           padding: "36px 32px",
           boxSizing: "border-box",
-          margin: 0,
         }}
       >
         {/* TOP SECTION: Coming Up Next & Stats */}
@@ -99,16 +351,16 @@ function App() {
                 }}
               >
                 <span role="img" aria-label="Cake">🎂</span>
-                {daysUntil(nextBirthday.date)} Days
+                {nextBirthday && nextBirthday.date ? daysUntil(nextBirthday.date) : "--"} Days
               </div>
               <div style={{ fontSize: 20, fontWeight: 600 }}>
-                {nextBirthday.name}'s Birthday
+                {nextBirthday?.name ? `${nextBirthday.name}'s Birthday` : "--"}
               </div>
               <div style={{ fontSize: 14, opacity: 0.85 }}>
-                {formatDate(nextBirthday.date)}
+                {nextBirthday?.date ? formatDate(nextBirthday.date) : "--"}
               </div>
               <div style={{ margin: "18px 0 0 0", fontSize: 16 }}>
-                {nextBirthday.bio}
+                {nextBirthday?.bio || ""}
               </div>
               <div style={{ marginTop: 18, display: "flex", gap: 12 }}>
                 <button
@@ -220,8 +472,29 @@ function App() {
                 flexDirection: "column",
                 alignItems: "flex-start",
                 width: "100%",
+                position: "relative"
               }}
             >
+              {/* Delete Button (top right of card) */}
+              <button
+                onClick={() => handleDeleteBirthday(b.id)}
+                title="Delete"
+                style={{
+                  position: "absolute",
+                  top: 10,
+                  right: 10,
+                  border: "none",
+                  background: "transparent",
+                  color: "#ff6ec4",
+                  fontSize: 20,
+                  cursor: "pointer",
+                  padding: 0,
+                  lineHeight: 1,
+                  filter: "drop-shadow(0 2px 4px #0007)"
+                }}
+              >
+                🗑️
+              </button>
               <div
                 style={{
                   display: "flex",
@@ -238,6 +511,9 @@ function App() {
                       📅
                     </span>{" "}
                     {formatDate(b.date)}
+                  </div>
+                  <div style={{ fontSize: 12, opacity: 0.7, marginTop: 2 }}>
+                    {b.relationship || ""}
                   </div>
                 </div>
               </div>
@@ -270,5 +546,3 @@ function App() {
     </div>
   );
 }
-
-export default App;
