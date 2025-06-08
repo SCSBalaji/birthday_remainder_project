@@ -1,6 +1,9 @@
 import React, { useState } from "react";
-import { mockBirthdays as defaultBirthdays } from "./mockBirthdays";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import SignUpPage from "./SignUpPage";
+import SignInPage from "./SignInPage";
 import CalendarView from "./CalendarView";
+import { mockBirthdays as defaultBirthdays } from "./mockBirthdays";
 
 const RELATIONSHIP_OPTIONS = [
   "Family",
@@ -36,6 +39,27 @@ function formatDate(dateStr) {
 }
 
 export default function App() {
+  // If you want to keep the router, wrap your current UI in a "home" route:
+  return (
+    <Router>
+      <Routes>
+        <Route
+          path="/"
+          element={
+            <BirthdayBuddyHome />
+          }
+        />
+        <Route path="/signup" element={<SignUpPage />} />
+        <Route path="/signin" element={<SignInPage />} />
+        {/* Default: redirect to sign in */}
+        <Route path="*" element={<Navigate to="/signin" replace />} />
+      </Routes>
+    </Router>
+  );
+}
+
+// Move your main Birthday Buddy code into a new component:
+function BirthdayBuddyHome() {
   const [birthdays, setBirthdays] = useState(defaultBirthdays);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ name: "", date: "", relationship: "", bio: "" });
