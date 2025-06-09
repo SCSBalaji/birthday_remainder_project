@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import "./SignUpPage.css"; // Import the CSS file
+import "./SignUpPage.css";
 
 export default function SignUpPage() {
   const [form, setForm] = useState({
