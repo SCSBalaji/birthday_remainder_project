@@ -778,6 +778,7 @@ function BirthdayBuddyHome() {
             {/* UPCOMING BIRTHDAYS */}
             <h2 style={{ color: "#ffb4fc", marginTop: 16 }}>Upcoming Birthdays</h2>
             <div
+              className="upcoming-birthdays-grid"
               style={{
                 display: "grid",
                 gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",

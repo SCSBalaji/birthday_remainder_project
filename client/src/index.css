@@ -28,6 +28,7 @@ body {
   place-items: center;
   min-width: 320px;
   min-height: 100vh;
+  background: radial-gradient(ellipse at top left, #191970 0%, #4e0066 100%);
 }
 
 h1 {
@@ -44,10 +45,11 @@ button {
   font-family: inherit;
   background-color: #1a1a1a;
   cursor: pointer;
-  transition: border-color 0.25s;
+  transition: border-color 0.25s, background 0.2s;
 }
 button:hover {
   border-color: #646cff;
+  background: #29214a;
 }
 button:focus,
 button:focus-visible {
@@ -64,5 +66,15 @@ button:focus-visible {
   }
   button {
     background-color: #f9f9f9;
+  }
+}
+
+@media (max-width: 700px) {
+  h1 {
+    font-size: 2em;
+  }
+  body {
+    padding: 0;
+    min-width: 0;
   }
 }

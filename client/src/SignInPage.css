@@ -1,6 +1,6 @@
 .signin-bg {
   width: 100vw;
-  height: 100vh;
+  min-height: 100vh;
   background: radial-gradient(ellipse at top left, #191970 0%, #4e0066 100%);
   display: flex;
   align-items: center;
@@ -86,6 +86,10 @@
   cursor: pointer;
   margin-bottom: 14px;
   margin-top: 6px;
+  transition: background 0.2s;
+}
+.signin-submit:hover {
+  background: linear-gradient(90deg, #7873f5 0%, #ff6ec4 100%);
 }
 
 .signin-signup {
@@ -97,4 +101,24 @@
 .signin-signup-link {
   color: #1fd1f9;
   text-decoration: underline;
+}
+
+@media (max-width: 600px) {
+  .signin-form {
+    min-width: unset;
+    max-width: 98vw;
+    padding: 18px 4vw 18px 4vw;
+    border-radius: 10px;
+  }
+  .signin-title {
+    font-size: 20px;
+  }
+  .signin-input {
+    font-size: 14px;
+    padding: 8px;
+  }
+  .signin-submit {
+    font-size: 15px;
+    padding: 10px 0;
+  }
 }
