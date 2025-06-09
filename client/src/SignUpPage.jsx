@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
+import "./SignUpPage.css"; // Import the CSS file
 
 export default function SignUpPage() {
   const [form, setForm] = useState({
@@ -14,42 +15,13 @@ export default function SignUpPage() {
   }
 
   return (
-    <div style={{
-      width: "100vw",
-      height: "100vh",
-      background: "radial-gradient(ellipse at top left, #191970 0%, #4e0066 100%)",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      fontFamily: "'Segoe UI', Arial, sans-serif",
-      margin: 0,
-      padding: 0,
-      boxSizing: "border-box"
-    }}>
-      <form style={{
-        background: "#18103d",
-        padding: "38px 32px 30px 32px",
-        borderRadius: 16,
-        minWidth: 340,
-        maxWidth: 400,
-        width: "100%",
-        boxShadow: "0 8px 32px #0008",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center"
-      }}>
-        <div style={{
-          fontWeight: 700,
-          fontSize: 26,
-          color: "#ffb4fc",
-          marginBottom: 22,
-          letterSpacing: 1,
-          display: "flex", alignItems: "center", gap: 10
-        }}>
+    <div className="signup-bg">
+      <form className="signup-form">
+        <div className="signup-title">
           <span role="img" aria-label="Cake">🎂</span> Sign Up
         </div>
-        <div style={{ width: "100%", marginBottom: 16 }}>
-          <label style={{ display: "block", marginBottom: 5, fontWeight: 500, color: "#fff" }}>Full Name</label>
+        <div className="signup-input-group">
+          <label className="signup-label">Full Name</label>
           <input
             type="text"
             name="name"
@@ -58,14 +30,11 @@ export default function SignUpPage() {
             autoComplete="off"
             placeholder="Enter your name"
             required
-            style={{
-              width: "100%", padding: 10, borderRadius: 7, background: "#29214a",
-              border: "none", fontSize: 15, color: "#fff", outline: "none"
-            }}
+            className="signup-input"
           />
         </div>
-        <div style={{ width: "100%", marginBottom: 16 }}>
-          <label style={{ display: "block", marginBottom: 5, fontWeight: 500, color: "#fff" }}>Email Address</label>
+        <div className="signup-input-group">
+          <label className="signup-label">Email Address</label>
           <input
             type="email"
             name="email"
@@ -74,14 +43,11 @@ export default function SignUpPage() {
             autoComplete="off"
             placeholder="your@email.com"
             required
-            style={{
-              width: "100%", padding: 10, borderRadius: 7, background: "#29214a",
-              border: "none", fontSize: 15, color: "#fff", outline: "none"
-            }}
+            className="signup-input"
           />
         </div>
-        <div style={{ width: "100%", marginBottom: 16 }}>
-          <label style={{ display: "block", marginBottom: 5, fontWeight: 500, color: "#fff" }}>Password</label>
+        <div className="signup-input-group">
+          <label className="signup-label">Password</label>
           <input
             type="password"
             name="password"
@@ -89,14 +55,11 @@ export default function SignUpPage() {
             onChange={handleChange}
             placeholder="Password"
             required
-            style={{
-              width: "100%", padding: 10, borderRadius: 7, background: "#29214a",
-              border: "none", fontSize: 15, color: "#fff", outline: "none"
-            }}
+            className="signup-input"
           />
         </div>
-        <div style={{ width: "100%", marginBottom: 20 }}>
-          <label style={{ display: "block", marginBottom: 5, fontWeight: 500, color: "#fff" }}>Confirm Password</label>
+        <div className="signup-input-group">
+          <label className="signup-label">Confirm Password</label>
           <input
             type="password"
             name="confirm"
@@ -104,30 +67,15 @@ export default function SignUpPage() {
             onChange={handleChange}
             placeholder="Repeat password"
             required
-            style={{
-              width: "100%", padding: 10, borderRadius: 7, background: "#29214a",
-              border: "none", fontSize: 15, color: "#fff", outline: "none"
-            }}
+            className="signup-input"
           />
         </div>
-        <button type="submit" style={{
-          width: "100%",
-          padding: "12px 0",
-          borderRadius: 8,
-          border: "none",
-          background: "linear-gradient(90deg, #ff6ec4 0%, #7873f5 100%)",
-          color: "#fff",
-          fontWeight: 700,
-          fontSize: 17,
-          cursor: "pointer",
-          marginBottom: 14,
-          marginTop: 6
-        }}>
+        <button type="submit" className="signup-btn">
           Sign Up
         </button>
-        <div style={{ fontSize: 15, color: "#ffb4fc", marginTop: 5 }}>
+        <div className="signup-footer">
           Already have an account?{" "}
-          <Link to="/signin" style={{ color: "#1fd1f9", textDecoration: "underline" }}>
+          <Link to="/signin" className="signup-link">
             Sign In
           </Link>
         </div>
