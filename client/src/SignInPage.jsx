@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import "./SignInPage.css"; // Import the CSS file
+import "./SignInPage.css";
 
 export default function SignInPage() {
   const [form, setForm] = useState({

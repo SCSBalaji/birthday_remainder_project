@@ -36,7 +36,7 @@
 }
 
 .signin-field {
-  width: 100%;
+  width:  100%;
   margin-bottom: 16px;
 }
 
@@ -48,8 +48,11 @@
 }
 
 .signin-input {
-  width: 100%;
-  padding: 10px;
+  width: 391px;
+  padding-right: 0px;
+  padding-left: 10px;
+  padding-top: 12px;
+  padding-bottom: 12px;
   border-radius: 7px;
   background: #29214a;
   border: none;
