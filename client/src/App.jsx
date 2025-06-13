@@ -306,7 +306,7 @@ function BirthdayBuddyHome() {
                 onChange={handleInputChange}
                 required
                 style={{
-                  width: "100%",
+                  width: "95%",
                   padding: 10,
                   borderRadius: 6,
                   border: "none",
@@ -328,7 +328,7 @@ function BirthdayBuddyHome() {
                 onChange={handleInputChange}
                 required
                 style={{
-                  width: "100%",
+                  width: "95%",
                   padding: 10,
                   borderRadius: 6,
                   border: "none",
@@ -376,7 +376,7 @@ function BirthdayBuddyHome() {
                 onChange={handleInputChange}
                 rows={2}
                 style={{
-                  width: "100%",
+                  width: "95%",
                   padding: 10,
                   borderRadius: 6,
                   border: "none",
