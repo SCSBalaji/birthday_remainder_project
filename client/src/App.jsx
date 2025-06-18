@@ -781,20 +781,22 @@ function BirthdayBuddyHome() {
               className="upcoming-birthdays-grid"
               style={{
                 display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
-                gap: 24,
-                marginTop: 14,
+                gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+                gap: 32,
+                marginTop: 24,
                 width: "100%",
+                padding: "0 8px"
               }}
             >
               {sortedBirthdays.length === 0 ? (
                 <div style={{
                   gridColumn: "1/-1",
                   background: "#22223b",
-                  borderRadius: 12,
-                  padding: 32,
+                  borderRadius: 16,
+                  padding: 40,
                   color: "#fff",
-                  textAlign: "center"
+                  textAlign: "center",
+                  boxShadow: "0 6px 30px rgba(0,0,0,0.15)"
                 }}>
                   No birthdays found.
                 </div>
@@ -803,16 +805,28 @@ function BirthdayBuddyHome() {
                   <div
                     key={b.id}
                     style={{
-                      background: "#22223b",
-                      borderRadius: 12,
-                      padding: 22,
+                      background: "linear-gradient(135deg, #2a2550 0%, #1f1b42 100%)",
+                      borderRadius: 16,
+                      padding: 28,
                       color: "#fff",
-                      boxShadow: "0 4px 24px #0003",
+                      boxShadow: "0 8px 32px rgba(0,0,0,0.2)",
                       display: "flex",
                       flexDirection: "column",
                       alignItems: "flex-start",
                       width: "100%",
-                      position: "relative"
+                      position: "relative",
+                      border: "1px solid rgba(255, 255, 255, 0.1)",
+                      transition: "transform 0.2s ease, box-shadow 0.2s ease",
+                      cursor: "pointer",
+                      margin: "8px"
+                    }}
+                    onMouseEnter={(e) => {
+                      e.target.style.transform = "translateY(-4px)";
+                      e.target.style.boxShadow = "0 12px 40px rgba(0,0,0,0.3)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.transform = "translateY(0)";
+                      e.target.style.boxShadow = "0 8px 32px rgba(0,0,0,0.2)";
                     }}
                   >
                     {/* Delete Button */}
@@ -821,16 +835,30 @@ function BirthdayBuddyHome() {
                       title="Delete"
                       style={{
                         position: "absolute",
-                        top: 10,
-                        right: 10,
+                        top: 16,
+                        right: 16,
                         border: "none",
-                        background: "transparent",
+                        background: "rgba(255, 110, 196, 0.2)",
                         color: "#ff6ec4",
-                        fontSize: 20,
+                        fontSize: 18,
                         cursor: "pointer",
-                        padding: 0,
+                        padding: "8px",
                         lineHeight: 1,
-                        filter: "drop-shadow(0 2px 4px #0007)"
+                        borderRadius: "50%",
+                        width: "36px",
+                        height: "36px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        transition: "all 0.2s ease"
+                      }}
+                      onMouseEnter={(e) => {
+                        e.target.style.background = "rgba(255, 110, 196, 0.3)";
+                        e.target.style.transform = "scale(1.1)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.target.style.background = "rgba(255, 110, 196, 0.2)";
+                        e.target.style.transform = "scale(1)";
                       }}
                     >
                       🗑️
@@ -841,16 +869,30 @@ function BirthdayBuddyHome() {
                       title="Edit"
                       style={{
                         position: "absolute",
-                        top: 10,
-                        right: 44,
+                        top: 16,
+                        right: 60,
                         border: "none",
-                        background: "transparent",
+                        background: "rgba(31, 209, 249, 0.2)",
                         color: "#1fd1f9",
-                        fontSize: 20,
+                        fontSize: 18,
                         cursor: "pointer",
-                        padding: 0,
+                        padding: "8px",
                         lineHeight: 1,
-                        filter: "drop-shadow(0 2px 4px #0007)"
+                        borderRadius: "50%",
+                        width: "36px",
+                        height: "36px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        transition: "all 0.2s ease"
+                      }}
+                      onMouseEnter={(e) => {
+                        e.target.style.background = "rgba(31, 209, 249, 0.3)";
+                        e.target.style.transform = "scale(1.1)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.target.style.background = "rgba(31, 209, 249, 0.2)";
+                        e.target.style.transform = "scale(1)";
                       }}
                     >
                       ✏️
@@ -859,42 +901,73 @@ function BirthdayBuddyHome() {
                       style={{
                         display: "flex",
                         alignItems: "center",
-                        gap: 12,
-                        marginBottom: 4,
+                        gap: 16,
+                        marginBottom: 20,
+                        width: "100%",
+                        paddingRight: "80px"
                       }}
                     >
-                      <span style={{ fontSize: 28 }}>🎁</span>
-                      <div>
-                        <div style={{ fontWeight: 700, fontSize: 18 }}>{b.name}</div>
-                        <div style={{ fontSize: 13, opacity: 0.85 }}>
-                          <span role="img" aria-label="calendar">
-                            📅
-                          </span>{" "}
+                      <div style={{
+                        fontSize: 32,
+                        background: "linear-gradient(90deg, #ff6ec4 0%, #7873f5 100%)",
+                        borderRadius: "50%",
+                        width: "50px",
+                        height: "50px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        flexShrink: 0
+                      }}>
+                        🎁
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 700, fontSize: 20, marginBottom: 4 }}>{b.name}</div>
+                        <div style={{ fontSize: 14, opacity: 0.85, marginBottom: 2 }}>
+                          <span role="img" aria-label="calendar">📅</span>{" "}
                           {formatDate(b.date)}
                         </div>
-                        <div style={{ fontSize: 12, opacity: 0.7, marginTop: 2 }}>
-                          {b.relationship || ""}
-                        </div>
+                        {b.relationship && (
+                          <div style={{
+                            fontSize: 12,
+                            opacity: 0.8,
+                            background: "rgba(255, 180, 252, 0.2)",
+                            display: "inline-block",
+                            padding: "2px 8px",
+                            borderRadius: "12px",
+                            marginTop: 4
+                          }}>
+                            {b.relationship}
+                          </div>
+                        )}
                       </div>
                     </div>
+                    {b.bio && (
+                      <div
+                        style={{
+                          margin: "0 0 20px 0",
+                          fontSize: 15,
+                          opacity: 0.9,
+                          lineHeight: 1.4,
+                          background: "rgba(255, 255, 255, 0.05)",
+                          padding: "12px 16px",
+                          borderRadius: "10px",
+                          width: "100%",
+                          boxSizing: "border-box"
+                        }}
+                      >
+                        {b.bio}
+                      </div>
+                    )}
                     <div
                       style={{
-                        margin: "12px 0 6px 0",
-                        fontSize: 15,
-                        opacity: 0.9,
-                      }}
-                    >
-                      {b.bio}
-                    </div>
-                    <div
-                      style={{
-                        marginTop: 6,
-                        background: "#b621fe",
+                        marginTop: "auto",
+                        background: "linear-gradient(90deg, #b621fe 0%, #7873f5 100%)",
                         display: "inline-block",
-                        borderRadius: 6,
-                        padding: "4px 12px",
+                        borderRadius: 8,
+                        padding: "8px 16px",
                         fontWeight: 600,
-                        fontSize: 13,
+                        fontSize: 14,
+                        boxShadow: "0 2px 8px rgba(182, 33, 254, 0.3)"
                       }}
                     >
                       In {daysUntil(b.date)} days
