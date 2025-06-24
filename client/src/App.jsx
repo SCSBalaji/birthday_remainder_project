@@ -549,146 +549,135 @@ function BirthdayBuddyHome() {
           </div>
         ) : (
           <>
-            {/* TOP SECTION: Coming Up Next & Stats */}
+            {/* Coming Up Next */}
+            <div
+              style={{
+                flex: "1 1 400px",
+                minWidth: 340,
+                display: "flex",
+                flexDirection: "column",
+                gap: 24,
+                marginBottom: 32,
+              }}
+            >
+              <h2 style={{ color: "#ffb4fc", margin: 0 }}>Coming Up Next</h2>
+              <div
+                style={{
+                  background: "linear-gradient(90deg, #b621fe 0%, #1fd1f9 100%)",
+                  borderRadius: 16,
+                  padding: 32,
+                  color: "#fff",
+                  display: "flex",
+                  flexDirection: "column",
+                  minHeight: 200,
+                  boxShadow: "0 8px 32px #0004",
+                  width: "100%",
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: 36,
+                    fontWeight: 700,
+                    marginBottom: 8,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                  }}
+                >
+                  <span role="img" aria-label="Cake">🎂</span>
+                  {nextBirthday && nextBirthday.date ? daysUntil(nextBirthday.date) : "--"} Days
+                </div>
+                <div style={{ fontSize: 20, fontWeight: 600 }}>
+                  {nextBirthday?.name ? `${nextBirthday.name}'s Birthday` : "--"}
+                </div>
+                <div style={{ fontSize: 14, opacity: 0.85 }}>
+                  {nextBirthday?.date ? formatDate(nextBirthday.date) : "--"}
+                </div>
+                <div style={{ margin: "18px 0 0 0", fontSize: 16 }}>
+                  {nextBirthday?.bio || ""}
+                </div>
+                <div style={{ marginTop: 18, display: "flex", gap: 12 }}>
+                  <button
+                    style={{
+                      background: "#fff",
+                      color: "#b621fe",
+                      border: "none",
+                      borderRadius: 6,
+                      padding: "8px 20px",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Send Gift
+                  </button>
+                  <button
+                    style={{
+                      background: "#fff",
+                      color: "#1fd1f9",
+                      border: "none",
+                      borderRadius: 6,
+                      padding: "8px 20px",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Set Reminder
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* STATS SECTION - Full width with equal sizes */}
             <div
               style={{
                 display: "flex",
-                flexWrap: "wrap",
-                gap: 32,
+                gap: 18,
                 marginBottom: 32,
-                alignItems: "stretch",
                 width: "100%",
+                justifyContent: "space-between",
               }}
             >
-              {/* Left: Coming Up Next */}
               <div
                 style={{
-                  flex: "2 1 400px",
-                  minWidth: 340,
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 24,
+                  background: "#fff2",
+                  borderRadius: 10,
+                  padding: 18,
+                  textAlign: "center",
+                  fontWeight: 700,
+                  fontSize: 20,
+                  flex: 1,
                 }}
               >
-                <h2 style={{ color: "#ffb4fc", margin: 0 }}>Coming Up Next</h2>
-                <div
-                  style={{
-                    background: "linear-gradient(90deg, #b621fe 0%, #1fd1f9 100%)",
-                    borderRadius: 16,
-                    padding: 32,
-                    color: "#fff",
-                    display: "flex",
-                    flexDirection: "column",
-                    minHeight: 200,
-                    boxShadow: "0 8px 32px #0004",
-                    width: "100%",
-                  }}
-                >
-                  <div
-                    style={{
-                      fontSize: 36,
-                      fontWeight: 700,
-                      marginBottom: 8,
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 12,
-                    }}
-                  >
-                    <span role="img" aria-label="Cake">🎂</span>
-                    {nextBirthday && nextBirthday.date ? daysUntil(nextBirthday.date) : "--"} Days
-                  </div>
-                  <div style={{ fontSize: 20, fontWeight: 600 }}>
-                    {nextBirthday?.name ? `${nextBirthday.name}'s Birthday` : "--"}
-                  </div>
-                  <div style={{ fontSize: 14, opacity: 0.85 }}>
-                    {nextBirthday?.date ? formatDate(nextBirthday.date) : "--"}
-                  </div>
-                  <div style={{ margin: "18px 0 0 0", fontSize: 16 }}>
-                    {nextBirthday?.bio || ""}
-                  </div>
-                  <div style={{ marginTop: 18, display: "flex", gap: 12 }}>
-                    <button
-                      style={{
-                        background: "#fff",
-                        color: "#b621fe",
-                        border: "none",
-                        borderRadius: 6,
-                        padding: "8px 20px",
-                        fontWeight: 600,
-                        cursor: "pointer",
-                      }}
-                    >
-                      Send Gift
-                    </button>
-                    <button
-                      style={{
-                        background: "#fff",
-                        color: "#1fd1f9",
-                        border: "none",
-                        borderRadius: 6,
-                        padding: "8px 20px",
-                        fontWeight: 600,
-                        cursor: "pointer",
-                      }}
-                    >
-                      Set Reminder
-                    </button>
-                  </div>
-                </div>
+                <div style={{ fontSize: 26 }}>{total}</div>
+                <div style={{ fontSize: 15, fontWeight: 400 }}>Total</div>
               </div>
-              {/* Right: Stats */}
               <div
                 style={{
-                  flex: "1 1 240px",
-                  minWidth: 200,
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 18,
-                  justifyContent: "center",
+                  background: "#ffb4fc44",
+                  borderRadius: 10,
+                  padding: 18,
+                  textAlign: "center",
+                  fontWeight: 700,
+                  fontSize: 20,
+                  flex: 1,
                 }}
               >
-                <div
-                  style={{
-                    background: "#fff2",
-                    borderRadius: 10,
-                    padding: 18,
-                    textAlign: "center",
-                    fontWeight: 700,
-                    fontSize: 20,
-                    width: "100%",
-                  }}
-                >
-                  <div style={{ fontSize: 26 }}>{total}</div>
-                  <div style={{ fontSize: 15, fontWeight: 400 }}>Total</div>
-                </div>
-                <div
-                  style={{
-                    background: "#ffb4fc44",
-                    borderRadius: 10,
-                    padding: 18,
-                    textAlign: "center",
-                    fontWeight: 700,
-                    fontSize: 20,
-                    width: "100%",
-                  }}
-                >
-                  <div style={{ fontSize: 26 }}>{thisMonth}</div>
-                  <div style={{ fontSize: 15, fontWeight: 400 }}>This Month</div>
-                </div>
-                <div
-                  style={{
-                    background: "#1fd1f944",
-                    borderRadius: 10,
-                    padding: 18,
-                    textAlign: "center",
-                    fontWeight: 700,
-                    fontSize: 20,
-                    width: "100%",
-                  }}
-                >
-                  <div style={{ fontSize: 26 }}>{next7Days}</div>
-                  <div style={{ fontSize: 15, fontWeight: 400 }}>Next 7 Days</div>
-                </div>
+                <div style={{ fontSize: 26 }}>{thisMonth}</div>
+                <div style={{ fontSize: 15, fontWeight: 400 }}>This Month</div>
+              </div>
+              <div
+                style={{
+                  background: "#1fd1f944",
+                  borderRadius: 10,
+                  padding: 18,
+                  textAlign: "center",
+                  fontWeight: 700,
+                  fontSize: 20,
+                  flex: 1,
+                }}
+              >
+                <div style={{ fontSize: 26 }}>{next7Days}</div>
+                <div style={{ fontSize: 15, fontWeight: 400 }}>Next 7 Days</div>
               </div>
             </div>
 
