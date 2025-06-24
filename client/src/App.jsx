@@ -778,14 +778,15 @@ function BirthdayBuddyHome() {
             {/* UPCOMING BIRTHDAYS */}
             <h2 style={{ color: "#ffb4fc", marginTop: 16 }}>Upcoming Birthdays</h2>
             <div
-              className="upcoming-birthdays-grid"
+              className="upcoming-birthdays-container"
               style={{
                 display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-                gap: 32,
+                gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+                maxWidth: "100%",
+                gap: "24px",
                 marginTop: 24,
-                width: "100%",
-                padding: "0 8px"
+                padding: "0",
+                boxSizing: "border-box"
               }}
             >
               {sortedBirthdays.length === 0 ? (
@@ -804,21 +805,23 @@ function BirthdayBuddyHome() {
                 sortedBirthdays.map((b, i) => (
                   <div
                     key={b.id}
+                    className="birthday-card"
                     style={{
                       background: "linear-gradient(135deg, #2a2550 0%, #1f1b42 100%)",
                       borderRadius: 16,
-                      padding: 28,
+                      padding: 24,
                       color: "#fff",
                       boxShadow: "0 8px 32px rgba(0,0,0,0.2)",
                       display: "flex",
                       flexDirection: "column",
                       alignItems: "flex-start",
-                      width: "100%",
                       position: "relative",
                       border: "1px solid rgba(255, 255, 255, 0.1)",
                       transition: "transform 0.2s ease, box-shadow 0.2s ease",
                       cursor: "pointer",
-                      margin: "8px"
+                      minHeight: "200px",
+                      maxWidth: "100%",
+                      boxSizing: "border-box"
                     }}
                     onMouseEnter={(e) => {
                       e.target.style.transform = "translateY(-4px)";
@@ -835,22 +838,23 @@ function BirthdayBuddyHome() {
                       title="Delete"
                       style={{
                         position: "absolute",
-                        top: 16,
-                        right: 16,
+                        top: 12,
+                        right: 12,
                         border: "none",
                         background: "rgba(255, 110, 196, 0.2)",
                         color: "#ff6ec4",
-                        fontSize: 18,
+                        fontSize: 16,
                         cursor: "pointer",
-                        padding: "8px",
+                        padding: "6px",
                         lineHeight: 1,
                         borderRadius: "50%",
-                        width: "36px",
-                        height: "36px",
+                        width: "32px",
+                        height: "32px",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
-                        transition: "all 0.2s ease"
+                        transition: "all 0.2s ease",
+                        zIndex: 10
                       }}
                       onMouseEnter={(e) => {
                         e.target.style.background = "rgba(255, 110, 196, 0.3)";
@@ -869,22 +873,23 @@ function BirthdayBuddyHome() {
                       title="Edit"
                       style={{
                         position: "absolute",
-                        top: 16,
-                        right: 60,
+                        top: 12,
+                        right: 50,
                         border: "none",
                         background: "rgba(31, 209, 249, 0.2)",
                         color: "#1fd1f9",
-                        fontSize: 18,
+                        fontSize: 16,
                         cursor: "pointer",
-                        padding: "8px",
+                        padding: "6px",
                         lineHeight: 1,
                         borderRadius: "50%",
-                        width: "36px",
-                        height: "36px",
+                        width: "32px",
+                        height: "32px",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
-                        transition: "all 0.2s ease"
+                        transition: "all 0.2s ease",
+                        zIndex: 10
                       }}
                       onMouseEnter={(e) => {
                         e.target.style.background = "rgba(31, 209, 249, 0.3)";
@@ -897,22 +902,23 @@ function BirthdayBuddyHome() {
                     >
                       ✏️
                     </button>
+                    
                     <div
                       style={{
                         display: "flex",
                         alignItems: "center",
-                        gap: 16,
-                        marginBottom: 20,
+                        gap: 12,
+                        marginBottom: 16,
                         width: "100%",
-                        paddingRight: "80px"
+                        paddingRight: "70px"
                       }}
                     >
                       <div style={{
-                        fontSize: 32,
+                        fontSize: 28,
                         background: "linear-gradient(90deg, #ff6ec4 0%, #7873f5 100%)",
                         borderRadius: "50%",
-                        width: "50px",
-                        height: "50px",
+                        width: "45px",
+                        height: "45px",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
@@ -920,53 +926,68 @@ function BirthdayBuddyHome() {
                       }}>
                         🎁
                       </div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontWeight: 700, fontSize: 20, marginBottom: 4 }}>{b.name}</div>
-                        <div style={{ fontSize: 14, opacity: 0.85, marginBottom: 2 }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ 
+                          fontWeight: 700, 
+                          fontSize: 18, 
+                          marginBottom: 4,
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap"
+                        }}>
+                          {b.name}
+                        </div>
+                        <div style={{ fontSize: 13, opacity: 0.85, marginBottom: 2 }}>
                           <span role="img" aria-label="calendar">📅</span>{" "}
                           {formatDate(b.date)}
                         </div>
                         {b.relationship && (
                           <div style={{
-                            fontSize: 12,
+                            fontSize: 11,
                             opacity: 0.8,
                             background: "rgba(255, 180, 252, 0.2)",
                             display: "inline-block",
-                            padding: "2px 8px",
-                            borderRadius: "12px",
-                            marginTop: 4
+                            padding: "2px 6px",
+                            borderRadius: "8px",
+                            marginTop: 2
                           }}>
                             {b.relationship}
                           </div>
                         )}
                       </div>
                     </div>
+                    
                     {b.bio && (
                       <div
                         style={{
-                          margin: "0 0 20px 0",
-                          fontSize: 15,
+                          margin: "0 0 16px 0",
+                          fontSize: 14,
                           opacity: 0.9,
                           lineHeight: 1.4,
                           background: "rgba(255, 255, 255, 0.05)",
-                          padding: "12px 16px",
-                          borderRadius: "10px",
+                          padding: "10px 12px",
+                          borderRadius: "8px",
                           width: "100%",
-                          boxSizing: "border-box"
+                          boxSizing: "border-box",
+                          overflow: "hidden",
+                          display: "-webkit-box",
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: "vertical"
                         }}
                       >
                         {b.bio}
                       </div>
                     )}
+                    
                     <div
                       style={{
                         marginTop: "auto",
                         background: "linear-gradient(90deg, #b621fe 0%, #7873f5 100%)",
                         display: "inline-block",
-                        borderRadius: 8,
-                        padding: "8px 16px",
+                        borderRadius: 6,
+                        padding: "6px 12px",
                         fontWeight: 600,
-                        fontSize: 14,
+                        fontSize: 13,
                         boxShadow: "0 2px 8px rgba(182, 33, 254, 0.3)"
                       }}
                     >
