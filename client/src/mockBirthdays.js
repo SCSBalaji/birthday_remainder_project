@@ -28,5 +28,17 @@ export const mockBirthdays = [
     name: "Sophia Garcia",
     date: "2000-08-03",
     bio: "Enjoys traveling and exploring new places",
+  },
+  {
+    id: 6,
+    name: "SCS Balaji",
+    date: "2006-03-03",
+    bio: "Enjoys traveling and exploring new places",
+  },
+  {
+    id: 7,
+    name: "Lakshman",
+    date: "2005-07-01",
+    bio: "Enjoys traveling and exploring new places",
   }
 ];
