@@ -3,15 +3,6 @@
   padding: 0;
   min-height: 100vh;
   box-sizing: border-box;
-  width: 100vw;
-}
-
-.card {
-  padding: 2em;
-  background: #22223b;
-  border-radius: 16px;
-  box-shadow: 0 4px 24px #0003;
-  margin-bottom: 1.5em;
 }
 
 /* Main background and layout */
@@ -23,7 +14,6 @@
   margin: 0;
   padding: 0;
   box-sizing: border-box;
-  width: 100vw;
   overflow-x: hidden;
   position: relative;
 }
@@ -323,8 +313,9 @@
   flex-direction: column;
   min-height: 200px;
   box-shadow: 0 8px 32px #0004;
-  width: 100%;
-}
+  /* width: 96%; */
+  max-width: 100%;
+  }
 
 .next-birthday-days {
   font-size: 36px;
