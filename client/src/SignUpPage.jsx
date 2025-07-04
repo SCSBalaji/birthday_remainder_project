@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { authAPI } from "./services/api";
 import { useAuth } from "./contexts/AuthContext";
 import "./SignUpPage.css";
 
@@ -10,50 +11,40 @@ export default function SignUpPage() {
     password: "",
     confirm: "",
   });
-  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const { register } = useAuth();
+  const { login } = useAuth();
   const navigate = useNavigate();
 
   function handleChange(e) {
     setForm({ ...form, [e.target.name]: e.target.value });
-    if (error) setError(""); // Clear error when user types
   }
 
   async function handleSubmit(e) {
     e.preventDefault();
+    setLoading(true);
     setError("");
 
-    // Client-side validation
+    // Validate passwords match
     if (form.password !== form.confirm) {
-      setError("Passwords do not match");
+      setError("Passwords don't match");
+      setLoading(false);
       return;
     }
-
-    if (form.password.length < 6) {
-      setError("Password must be at least 6 characters long");
-      return;
-    }
-
-    setLoading(true);
 
     try {
-      const result = await register({
+      const response = await authAPI.register({
         name: form.name,
         email: form.email,
         password: form.password
       });
       
-      if (result.success) {
-        console.log("Registration successful!");
-        navigate("/"); // Redirect to home page
-      } else {
-        setError(result.message || "Registration failed");
-      }
+      // Auto-login after successful registration
+      login(response.token, response.user);
+      navigate("/");
     } catch (err) {
-      setError("An unexpected error occurred");
-      console.error("Registration error:", err);
+      setError(err.response?.data?.message || "Registration failed");
     } finally {
       setLoading(false);
     }
@@ -61,20 +52,17 @@ export default function SignUpPage() {
 
   return (
     <div className="signup-bg">
-      <form onSubmit={handleSubmit} className="signup-form">
+      <form className="signup-form" onSubmit={handleSubmit}>
         <div className="signup-title">
           <span role="img" aria-label="Cake">🎂</span> Sign Up
         </div>
 
         {error && (
-          <div style={{
-            background: '#ff6ec444',
-            color: '#ff6ec4',
-            padding: '10px',
-            borderRadius: '6px',
-            marginBottom: '16px',
-            fontSize: '14px',
-            textAlign: 'center'
+          <div style={{ 
+            color: '#ff6b6b', 
+            marginBottom: '15px', 
+            textAlign: 'center',
+            fontSize: '14px'
           }}>
             {error}
           </div>
@@ -87,13 +75,12 @@ export default function SignUpPage() {
             name="name"
             value={form.name}
             onChange={handleChange}
+            autoComplete="off"
             placeholder="Enter your name"
             required
-            disabled={loading}
             className="signup-input"
           />
         </div>
-
         <div className="signup-input-group">
           <label className="signup-label">Email Address</label>
           <input
@@ -101,13 +88,12 @@ export default function SignUpPage() {
             name="email"
             value={form.email}
             onChange={handleChange}
+            autoComplete="off"
             placeholder="your@email.com"
             required
-            disabled={loading}
             className="signup-input"
           />
         </div>
-
         <div className="signup-input-group">
           <label className="signup-label">Password</label>
           <input
@@ -115,13 +101,11 @@ export default function SignUpPage() {
             name="password"
             value={form.password}
             onChange={handleChange}
-            placeholder="Password (min 6 characters)"
+            placeholder="Password"
             required
-            disabled={loading}
             className="signup-input"
           />
         </div>
-
         <div className="signup-input-group">
           <label className="signup-label">Confirm Password</label>
           <input
@@ -131,20 +115,12 @@ export default function SignUpPage() {
             onChange={handleChange}
             placeholder="Repeat password"
             required
-            disabled={loading}
             className="signup-input"
           />
         </div>
-
-        <button 
-          type="submit" 
-          disabled={loading}
-          className="signup-btn"
-          style={{ opacity: loading ? 0.7 : 1 }}
-        >
+        <button type="submit" className="signup-btn" disabled={loading}>
           {loading ? "Creating Account..." : "Sign Up"}
         </button>
-
         <div className="signup-footer">
           Already have an account?{" "}
           <Link to="/signin" className="signup-link">

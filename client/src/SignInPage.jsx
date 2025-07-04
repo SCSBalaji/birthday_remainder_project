@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { authAPI } from "./services/api";
 import { useAuth } from "./contexts/AuthContext";
 import "./SignInPage.css";
 
@@ -8,34 +9,27 @@ export default function SignInPage() {
     email: "",
     password: "",
   });
-  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const { login } = useAuth();
   const navigate = useNavigate();
 
   function handleChange(e) {
     setForm({ ...form, [e.target.name]: e.target.value });
-    if (error) setError(""); // Clear error when user types
   }
 
   async function handleSubmit(e) {
     e.preventDefault();
-    setError("");
     setLoading(true);
+    setError("");
 
     try {
-      const result = await login(form);
-      
-      if (result.success) {
-        console.log("Login successful!");
-        navigate("/"); // Redirect to home page
-      } else {
-        setError(result.message || "Login failed");
-      }
+      const response = await authAPI.login(form);
+      login(response.token, response.user);
+      navigate("/");
     } catch (err) {
-      setError("An unexpected error occurred");
-      console.error("Login error:", err);
+      setError(err.response?.data?.message || "Login failed");
     } finally {
       setLoading(false);
     }
@@ -43,20 +37,17 @@ export default function SignInPage() {
 
   return (
     <div className="signin-bg">
-      <form onSubmit={handleSubmit} className="signin-form">
+      <form className="signin-form" onSubmit={handleSubmit}>
         <div className="signin-title">
           <span role="img" aria-label="Cake">🎂</span> Sign In
         </div>
-
+        
         {error && (
-          <div style={{
-            background: '#ff6ec444',
-            color: '#ff6ec4',
-            padding: '10px',
-            borderRadius: '6px',
-            marginBottom: '16px',
-            fontSize: '14px',
-            textAlign: 'center'
+          <div style={{ 
+            color: '#ff6b6b', 
+            marginBottom: '15px', 
+            textAlign: 'center',
+            fontSize: '14px'
           }}>
             {error}
           </div>
@@ -69,13 +60,12 @@ export default function SignInPage() {
             name="email"
             value={form.email}
             onChange={handleChange}
+            autoComplete="off"
             placeholder="your@email.com"
             required
-            disabled={loading}
             className="signin-input"
           />
         </div>
-
         <div className="signin-field">
           <label className="signin-label">Password</label>
           <input
@@ -85,26 +75,17 @@ export default function SignInPage() {
             onChange={handleChange}
             placeholder="Password"
             required
-            disabled={loading}
             className="signin-input"
           />
         </div>
-
         <div className="signin-forgot">
           <button type="button" disabled className="signin-forgot-btn">
             Forgot password?
           </button>
         </div>
-
-        <button 
-          type="submit" 
-          disabled={loading}
-          className="signin-submit"
-          style={{ opacity: loading ? 0.7 : 1 }}
-        >
+        <button type="submit" className="signin-submit" disabled={loading}>
           {loading ? "Signing In..." : "Sign In"}
         </button>
-
         <div className="signin-signup">
           Don't have an account?{" "}
           <Link to="/signup" className="signin-signup-link">

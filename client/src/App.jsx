@@ -1,10 +1,10 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import SignUpPage from "./SignUpPage";
 import SignInPage from "./SignInPage";
 import CalendarView from "./CalendarView";
-import { mockBirthdays as defaultBirthdays } from "./mockBirthdays";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import { birthdayAPI } from "./services/api";
 import "./App.css";
 
 const RELATIONSHIP_OPTIONS = [
@@ -15,7 +15,6 @@ const RELATIONSHIP_OPTIONS = [
   "Other"
 ];
 
-// NEW: Sort options
 const SORT_OPTIONS = [
   { value: "soonest", label: "Soonest Birthday" },
   { value: "az", label: "Name (A–Z)" },
@@ -40,74 +39,87 @@ function formatDate(dateStr) {
   return date.toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" });
 }
 
-// Protected Route Component
-function ProtectedRoute({ children }) {
-  const { isAuthenticated, loading } = useAuth();
-  
-  if (loading) {
-    return <div>Loading...</div>;
-  }
-  
-  return isAuthenticated ? children : <Navigate to="/signin" replace />;
-}
-
-// App Routes Component
-function AppRoutes() {
-  const { isAuthenticated, loading } = useAuth();
-  
-  if (loading) {
-    return <div>Loading...</div>;
-  }
-  
-  return (
-    <Routes>
-      <Route
-        path="/"
-        element={
-          <ProtectedRoute>
-            <BirthdayBuddyHome />
-          </ProtectedRoute>
-        }
-      />
-      <Route 
-        path="/signup" 
-        element={isAuthenticated ? <Navigate to="/" replace /> : <SignUpPage />} 
-      />
-      <Route 
-        path="/signin" 
-        element={isAuthenticated ? <Navigate to="/" replace /> : <SignInPage />} 
-      />
-      <Route path="*" element={<Navigate to={isAuthenticated ? "/" : "/signin"} replace />} />
-    </Routes>
-  );
-}
-
 export default function App() {
   return (
     <AuthProvider>
       <Router>
-        <AppRoutes />
+        <Routes>
+          <Route path="/" element={<ProtectedRoute><BirthdayBuddyHome /></ProtectedRoute>} />
+          <Route path="/signup" element={<SignUpPage />} />
+          <Route path="/signin" element={<SignInPage />} />
+          <Route path="*" element={<Navigate to="/signin" replace />} />
+        </Routes>
       </Router>
     </AuthProvider>
   );
 }
 
+// Protected Route Component
+function ProtectedRoute({ children }) {
+  const { isAuthenticated, loading } = useAuth();
+  
+  if (loading) {
+    return (
+      <div className="main-bg" style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '100vh',
+        color: 'white',
+        fontSize: '18px'
+      }}>
+        Loading...
+      </div>
+    );
+  }
+  
+  if (!isAuthenticated) {
+    return <Navigate to="/signin" replace />;
+  }
+  
+  return children;
+}
+
 function BirthdayBuddyHome() {
-  const { user, logout } = useAuth();
-  const [birthdays, setBirthdays] = useState(defaultBirthdays);
+  const { logout, user } = useAuth();
+  
+  // API-driven state
+  const [birthdays, setBirthdays] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  
+  // UI state (keep these the same)
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ name: "", date: "", relationship: "", bio: "" });
   const [editId, setEditId] = useState(null);
   const [toDeleteId, setToDeleteId] = useState(null);
-
   const [showCalendar, setShowCalendar] = useState(false);
   const [calendarMonth, setCalendarMonth] = useState(new Date().getMonth());
   const [calendarYear, setCalendarYear] = useState(new Date().getFullYear());
-
   const [search, setSearch] = useState("");
   const [filterRelationship, setFilterRelationship] = useState("");
   const [sortOption, setSortOption] = useState("soonest");
 
+  // Load birthdays on component mount
+  useEffect(() => {
+    loadBirthdays();
+  }, []);
+
+  const loadBirthdays = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const birthdayData = await birthdayAPI.getBirthdays();
+      setBirthdays(birthdayData || []);
+    } catch (err) {
+      console.error('Error loading birthdays:', err);
+      setError('Failed to load birthdays');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Rest of your filtering and sorting logic (unchanged)
   const filteredBirthdays = birthdays.filter(b =>
     (!search ||
       b.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -147,30 +159,31 @@ function BirthdayBuddyHome() {
     setForm({ ...form, [e.target.name]: e.target.value });
   }
 
-  function handleAddBirthday(e) {
+  // Updated to use API
+  async function handleAddBirthday(e) {
     e.preventDefault();
     if (!form.name || !form.date) return;
-    if (editId) {
-      setBirthdays(birthdays.map(b =>
-        b.id === editId
-          ? { ...b, ...form }
-          : b
-      ));
-    } else {
-      setBirthdays([
-        ...birthdays,
-        {
-          id: Date.now(),
-          name: form.name,
-          date: form.date,
-          relationship: form.relationship,
-          bio: form.bio,
-        },
-      ]);
+    
+    try {
+      if (editId) {
+        // Update existing birthday
+        await birthdayAPI.updateBirthday(editId, form);
+      } else {
+        // Create new birthday
+        await birthdayAPI.createBirthday(form);
+      }
+      
+      // Reload birthdays from server
+      await loadBirthdays();
+      
+      // Reset form
+      setForm({ name: "", date: "", relationship: "", bio: "" });
+      setShowForm(false);
+      setEditId(null);
+    } catch (err) {
+      console.error('Error saving birthday:', err);
+      setError('Failed to save birthday');
     }
-    setForm({ name: "", date: "", relationship: "", bio: "" });
-    setShowForm(false);
-    setEditId(null);
   }
 
   function handleEditClick(birthday) {
@@ -188,13 +201,21 @@ function BirthdayBuddyHome() {
     setToDeleteId(id);
   }
 
-  function confirmDelete() {
-    setBirthdays(birthdays.filter((b) => b.id !== toDeleteId));
-    setToDeleteId(null);
-    if (editId === toDeleteId) {
-      setShowForm(false);
-      setEditId(null);
-      setForm({ name: "", date: "", relationship: "", bio: "" });
+  // Updated to use API
+  async function confirmDelete() {
+    try {
+      await birthdayAPI.deleteBirthday(toDeleteId);
+      await loadBirthdays(); // Reload from server
+      setToDeleteId(null);
+      
+      if (editId === toDeleteId) {
+        setShowForm(false);
+        setEditId(null);
+        setForm({ name: "", date: "", relationship: "", bio: "" });
+      }
+    } catch (err) {
+      console.error('Error deleting birthday:', err);
+      setError('Failed to delete birthday');
     }
   }
 
@@ -208,6 +229,24 @@ function BirthdayBuddyHome() {
     setForm({ name: "", date: "", relationship: "", bio: "" });
   }
 
+  // Show loading state
+  if (loading && birthdays.length === 0) {
+    return (
+      <div className="main-bg">
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'center', 
+          alignItems: 'center', 
+          height: '100vh',
+          color: 'white',
+          fontSize: '18px'
+        }}>
+          Loading your birthdays...
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="main-bg">
       {/* HEADER */}
@@ -216,7 +255,6 @@ function BirthdayBuddyHome() {
           <span role="img" aria-label="Cake">🎂</span> Birthday Buddy
         </h1>
         <div className="header-buttons">
-          <span className="user-welcome">Welcome, {user?.name || user?.email}!</span>
           <button
             onClick={() => setShowCalendar(!showCalendar)}
             className={`calendar-toggle-btn ${showCalendar ? 'active' : ''}`}
@@ -231,14 +269,30 @@ function BirthdayBuddyHome() {
             <span role="img" aria-label="Cake">🎂</span>
             Add Birthday
           </button>
-          <button
-            onClick={logout}
-            className="logout-btn"
-          >
-            Logout
+          <button onClick={logout} className="add-birthday-btn" style={{ marginLeft: '10px' }}>
+            👋 Logout
           </button>
         </div>
       </div>
+
+      {/* Error message */}
+      {error && (
+        <div style={{ 
+          background: '#ff6b6b', 
+          color: 'white', 
+          padding: '10px', 
+          textAlign: 'center',
+          margin: '10px'
+        }}>
+          {error}
+          <button 
+            onClick={() => setError(null)} 
+            style={{ marginLeft: '10px', background: 'transparent', border: 'none', color: 'white' }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* ADD/EDIT BIRTHDAY FORM */}
       {showForm && (
@@ -268,7 +322,6 @@ function BirthdayBuddyHome() {
                 onChange={handleInputChange}
                 required
                 className="form-input"
-                placeholder="dd-mm-yyyy"
               />
             </div>
             <div className="form-group">
@@ -382,7 +435,7 @@ function BirthdayBuddyHome() {
                   {nextBirthday && nextBirthday.date ? daysUntil(nextBirthday.date) : "--"} Days
                 </div>
                 <div className="next-birthday-name">
-                  {nextBirthday?.name ? `${nextBirthday.name}'s Birthday` : "--"}
+                  {nextBirthday?.name ? `${nextBirthday.name}'s Birthday` : "No upcoming birthdays"}
                 </div>
                 <div className="next-birthday-date">
                   {nextBirthday?.date ? formatDate(nextBirthday.date) : "--"}
@@ -460,7 +513,7 @@ function BirthdayBuddyHome() {
             <div className="upcoming-birthdays-container">
               {sortedBirthdays.length === 0 ? (
                 <div className="no-birthdays">
-                  No birthdays found.
+                  {loading ? "Loading birthdays..." : "No birthdays found. Add your first birthday!"}
                 </div>
               ) : (
                 sortedBirthdays.map((b, i) => (
