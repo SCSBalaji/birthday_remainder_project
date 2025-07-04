@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { authAPI, tokenManager } from '../services/api';
 
 const AuthContext = createContext();
 
@@ -12,81 +11,42 @@ export const useAuth = () => {
 };
 
 export const AuthProvider = ({ children }) => {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  // Check if user is logged in on app start
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        if (tokenManager.isLoggedIn()) {
-          const response = await authAPI.getProfile();
-          if (response.success) {
-            setUser(response.data.user);
-            setIsAuthenticated(true);
-          } else {
-            tokenManager.removeToken();
-          }
-        }
-      } catch (error) {
-        console.error('Auth check failed:', error);
-        tokenManager.removeToken();
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    checkAuth();
+    // Check if user is logged in on app start
+    const token = localStorage.getItem('token');
+    const userData = localStorage.getItem('user');
+    
+    if (token && userData) {
+      setIsAuthenticated(true);
+      setUser(JSON.parse(userData));
+    }
+    setLoading(false);
   }, []);
 
-  const login = async (credentials) => {
-    try {
-      setLoading(true);
-      const response = await authAPI.login(credentials);
-      if (response.success) {
-        setUser(response.data.user);
-        setIsAuthenticated(true);
-        return { success: true };
-      }
-      return response;
-    } catch (error) {
-      return error;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const register = async (userData) => {
-    try {
-      setLoading(true);
-      const response = await authAPI.register(userData);
-      if (response.success) {
-        setUser(response.data.user);
-        setIsAuthenticated(true);
-        return { success: true };
-      }
-      return response;
-    } catch (error) {
-      return error;
-    } finally {
-      setLoading(false);
-    }
+  const login = (token, userData) => {
+    localStorage.setItem('token', token);
+    localStorage.setItem('user', JSON.stringify(userData));
+    setIsAuthenticated(true);
+    setUser(userData);
   };
 
   const logout = () => {
-    authAPI.logout();
-    setUser(null);
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
     setIsAuthenticated(false);
+    setUser(null);
   };
 
   const value = {
+    isAuthenticated,
     user,
     login,
-    register,
     logout,
-    loading,
-    isAuthenticated,
+    loading
   };
 
   return (

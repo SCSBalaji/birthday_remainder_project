@@ -84,49 +84,28 @@ export const authAPI = {
 
 // Birthday API functions
 export const birthdayAPI = {
-  getAll: async () => {
-    try {
-      const response = await api.get('/birthdays');
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || { success: false, message: 'Failed to fetch birthdays' };
-    }
+  // Get all birthdays for the authenticated user
+  getBirthdays: async () => {
+    const response = await api.get('/birthdays');
+    return response.data.data.birthdays; // Extract just the birthdays array
   },
 
-  create: async (birthdayData) => {
-    try {
-      const response = await api.post('/birthdays', birthdayData);
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || { success: false, message: 'Failed to create birthday' };
-    }
+  // Create a new birthday
+  createBirthday: async (birthdayData) => {
+    const response = await api.post('/birthdays', birthdayData);
+    return response.data.data.birthday; // Return the created birthday
   },
 
-  update: async (id, birthdayData) => {
-    try {
-      const response = await api.put(`/birthdays/${id}`, birthdayData);
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || { success: false, message: 'Failed to update birthday' };
-    }
+  // Update an existing birthday
+  updateBirthday: async (id, birthdayData) => {
+    const response = await api.put(`/birthdays/${id}`, birthdayData);
+    return response.data.data.birthday; // Return the updated birthday
   },
 
-  delete: async (id) => {
-    try {
-      const response = await api.delete(`/birthdays/${id}`);
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || { success: false, message: 'Failed to delete birthday' };
-    }
-  },
-
-  getUpcoming: async () => {
-    try {
-      const response = await api.get('/birthdays/upcoming');
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || { success: false, message: 'Failed to fetch upcoming birthdays' };
-    }
+  // Delete a birthday
+  deleteBirthday: async (id) => {
+    const response = await api.delete(`/birthdays/${id}`);
+    return response.data;
   },
 };
 

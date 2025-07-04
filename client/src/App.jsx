@@ -4,6 +4,7 @@ import SignUpPage from "./SignUpPage";
 import SignInPage from "./SignInPage";
 import CalendarView from "./CalendarView";
 import { mockBirthdays as defaultBirthdays } from "./mockBirthdays";
+import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import "./App.css";
 
 const RELATIONSHIP_OPTIONS = [
@@ -39,25 +40,60 @@ function formatDate(dateStr) {
   return date.toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" });
 }
 
+// Protected Route Component
+function ProtectedRoute({ children }) {
+  const { isAuthenticated, loading } = useAuth();
+  
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+  
+  return isAuthenticated ? children : <Navigate to="/signin" replace />;
+}
+
+// App Routes Component
+function AppRoutes() {
+  const { isAuthenticated, loading } = useAuth();
+  
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+  
+  return (
+    <Routes>
+      <Route
+        path="/"
+        element={
+          <ProtectedRoute>
+            <BirthdayBuddyHome />
+          </ProtectedRoute>
+        }
+      />
+      <Route 
+        path="/signup" 
+        element={isAuthenticated ? <Navigate to="/" replace /> : <SignUpPage />} 
+      />
+      <Route 
+        path="/signin" 
+        element={isAuthenticated ? <Navigate to="/" replace /> : <SignInPage />} 
+      />
+      <Route path="*" element={<Navigate to={isAuthenticated ? "/" : "/signin"} replace />} />
+    </Routes>
+  );
+}
+
 export default function App() {
   return (
-    <Router>
-      <Routes>
-        <Route
-          path="/"
-          element={
-            <BirthdayBuddyHome />
-          }
-        />
-        <Route path="/signup" element={<SignUpPage />} />
-        <Route path="/signin" element={<SignInPage />} />
-        <Route path="*" element={<Navigate to="/signin" replace />} />
-      </Routes>
-    </Router>
+    <AuthProvider>
+      <Router>
+        <AppRoutes />
+      </Router>
+    </AuthProvider>
   );
 }
 
 function BirthdayBuddyHome() {
+  const { user, logout } = useAuth();
   const [birthdays, setBirthdays] = useState(defaultBirthdays);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ name: "", date: "", relationship: "", bio: "" });
@@ -180,6 +216,7 @@ function BirthdayBuddyHome() {
           <span role="img" aria-label="Cake">🎂</span> Birthday Buddy
         </h1>
         <div className="header-buttons">
+          <span className="user-welcome">Welcome, {user?.name || user?.email}!</span>
           <button
             onClick={() => setShowCalendar(!showCalendar)}
             className={`calendar-toggle-btn ${showCalendar ? 'active' : ''}`}
@@ -193,6 +230,12 @@ function BirthdayBuddyHome() {
           >
             <span role="img" aria-label="Cake">🎂</span>
             Add Birthday
+          </button>
+          <button
+            onClick={logout}
+            className="logout-btn"
+          >
+            Logout
           </button>
         </div>
       </div>
