@@ -11,8 +11,31 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
-app.use(cors());
+// New CORS configuration for Codespaces
+app.use(cors({
+  origin: [
+    'https://crispy-orbit-x55rwvrvq567fvq47-5173.app.github.dev',
+    'http://localhost:5173',
+    'http://127.0.0.1:5173'
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Origin', 'X-Requested-With', 'Content-Type', 'Accept', 'Authorization']
+}));
 app.use(express.json());
+
+// Additional CORS headers for OPTIONS requests
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', 'https://crispy-orbit-x55rwvrvq567fvq47-5173.app.github.dev');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  next();
+});
 
 // Database connection
 let db;
@@ -97,7 +120,8 @@ app.get('/test-db', async (req, res) => {
 });
 
 // Start server
-app.listen(PORT, async () => {
-  console.log(`🚀 Server is running on port ${PORT}`);
+app.listen(PORT, '0.0.0.0', async () => {
+  console.log(`🚀 Server is running on http://0.0.0.0:${PORT}`);
+  console.log(`🔗 Access via: http://localhost:${PORT} or http://127.0.0.1:${PORT}`);
   await connectToDatabase();
 });
