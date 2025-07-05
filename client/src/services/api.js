@@ -9,31 +9,55 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 10000,
 });
 
 // Token management utilities
 export const tokenManager = {
-  getToken: () => localStorage.getItem('birthdayBuddyToken'),
-  setToken: (token) => localStorage.setItem('birthdayBuddyToken', token),
-  removeToken: () => localStorage.removeItem('birthdayBuddyToken'),
-  isLoggedIn: () => !!localStorage.getItem('birthdayBuddyToken'),
+  getToken: () => {
+    const token = localStorage.getItem('token');
+    console.log('Getting token from localStorage:', token);
+    return token;
+  },
+  setToken: (token) => {
+    console.log('Setting token to localStorage:', token);
+    localStorage.setItem('token', token);
+  },
+  removeToken: () => {
+    console.log('Removing token from localStorage');
+    localStorage.removeItem('token');
+  },
+  isLoggedIn: () => !!localStorage.getItem('token'),
 };
 
 // Add auth token to requests automatically
-api.interceptors.request.use((config) => {
-  const token = tokenManager.getToken();
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-
-// Handle token expiry automatically
-api.interceptors.response.use(
-  (response) => response,
+api.interceptors.request.use(
+  (config) => {
+    const token = tokenManager.getToken();
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    
+    console.log('Making request to:', config.url);
+    console.log('Request headers:', config.headers);
+    
+    return config;
+  },
   (error) => {
+    console.error('Request interceptor error:', error);
+    return Promise.reject(error);
+  }
+);
+
+// Handle responses and token expiry
+api.interceptors.response.use(
+  (response) => {
+    console.log('Response received:', response);
+    return response;
+  },
+  (error) => {
+    console.error('Response error:', error);
     if (error.response?.status === 401) {
-      // Token expired or invalid
       tokenManager.removeToken();
       window.location.href = '/signin';
     }
@@ -45,24 +69,68 @@ api.interceptors.response.use(
 export const authAPI = {
   register: async (userData) => {
     try {
+      console.log('Attempting to register with:', userData);
       const response = await api.post('/auth/register', userData);
-      if (response.data.success && response.data.data.token) {
-        tokenManager.setToken(response.data.data.token);
+      
+      console.log('Full registration response:', response);
+      console.log('Response data:', response.data);
+      console.log('Response data structure:', JSON.stringify(response.data, null, 2));
+      
+      // Check different possible token locations
+      const tokenFromData = response.data?.token;
+      const tokenFromDataData = response.data?.data?.token;
+      const tokenFromUser = response.data?.user?.token;
+      
+      console.log('Token from response.data.token:', tokenFromData);
+      console.log('Token from response.data.data.token:', tokenFromDataData);
+      console.log('Token from response.data.user.token:', tokenFromUser);
+      
+      // Try to find token in the response
+      const token = tokenFromData || tokenFromDataData || tokenFromUser;
+      
+      if (token) {
+        console.log('Found token, saving:', token);
+        tokenManager.setToken(token);
+      } else {
+        console.error('No token found in response!');
       }
+      
       return response.data;
     } catch (error) {
+      console.error('Registration error:', error);
       throw error.response?.data || { success: false, message: 'Registration failed' };
     }
   },
 
   login: async (credentials) => {
     try {
+      console.log('Attempting to login with:', credentials);
       const response = await api.post('/auth/login', credentials);
-      if (response.data.success && response.data.data.token) {
-        tokenManager.setToken(response.data.data.token);
+      
+      console.log('Full login response:', response);
+      console.log('Login response data:', response.data);
+      
+      // Check different possible token locations
+      const tokenFromData = response.data?.token;
+      const tokenFromDataData = response.data?.data?.token;
+      const tokenFromUser = response.data?.user?.token;
+      
+      console.log('Login token from response.data.token:', tokenFromData);
+      console.log('Login token from response.data.data.token:', tokenFromDataData);
+      console.log('Login token from response.data.user.token:', tokenFromUser);
+      
+      const token = tokenFromData || tokenFromDataData || tokenFromUser;
+      
+      if (token) {
+        console.log('Found login token, saving:', token);
+        tokenManager.setToken(token);
+      } else {
+        console.error('No token found in login response!');
       }
+      
       return response.data;
     } catch (error) {
+      console.error('Login error:', error);
       throw error.response?.data || { success: false, message: 'Login failed' };
     }
   },
@@ -82,30 +150,42 @@ export const authAPI = {
   },
 };
 
-// Birthday API functions
+// Birthday API functions (rest remains the same)
 export const birthdayAPI = {
-  // Get all birthdays for the authenticated user
   getBirthdays: async () => {
-    const response = await api.get('/birthdays');
-    return response.data.data.birthdays; // Extract just the birthdays array
+    try {
+      const response = await api.get('/birthdays');
+      return response.data.data?.birthdays || [];
+    } catch (error) {
+      throw error.response?.data || { success: false, message: 'Failed to get birthdays' };
+    }
   },
 
-  // Create a new birthday
   createBirthday: async (birthdayData) => {
-    const response = await api.post('/birthdays', birthdayData);
-    return response.data.data.birthday; // Return the created birthday
+    try {
+      const response = await api.post('/birthdays', birthdayData);
+      return response.data.data?.birthday;
+    } catch (error) {
+      throw error.response?.data || { success: false, message: 'Failed to create birthday' };
+    }
   },
 
-  // Update an existing birthday
   updateBirthday: async (id, birthdayData) => {
-    const response = await api.put(`/birthdays/${id}`, birthdayData);
-    return response.data.data.birthday; // Return the updated birthday
+    try {
+      const response = await api.put(`/birthdays/${id}`, birthdayData);
+      return response.data.data?.birthday;
+    } catch (error) {
+      throw error.response?.data || { success: false, message: 'Failed to update birthday' };
+    }
   },
 
-  // Delete a birthday
   deleteBirthday: async (id) => {
-    const response = await api.delete(`/birthdays/${id}`);
-    return response.data;
+    try {
+      const response = await api.delete(`/birthdays/${id}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { success: false, message: 'Failed to delete birthday' };
+    }
   },
 };
 
