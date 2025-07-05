@@ -9,31 +9,59 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 10000,
 });
 
 // Token management utilities
 export const tokenManager = {
-  getToken: () => localStorage.getItem('birthdayBuddyToken'),
-  setToken: (token) => localStorage.setItem('birthdayBuddyToken', token),
-  removeToken: () => localStorage.removeItem('birthdayBuddyToken'),
-  isLoggedIn: () => !!localStorage.getItem('birthdayBuddyToken'),
+  getToken: () => {
+    const token = localStorage.getItem('token');
+    console.log('TokenManager: Getting token from localStorage:', token);
+    return token;
+  },
+  setToken: (token) => {
+    console.log('TokenManager: Setting token to localStorage:', token);
+    localStorage.setItem('token', token);
+    
+    // Verify it was saved
+    const saved = localStorage.getItem('token');
+    console.log('TokenManager: Verification - token after save:', saved);
+  },
+  removeToken: () => {
+    console.log('TokenManager: Removing token from localStorage');
+    localStorage.removeItem('token');
+  },
+  isLoggedIn: () => !!localStorage.getItem('token'),
 };
 
 // Add auth token to requests automatically
-api.interceptors.request.use((config) => {
-  const token = tokenManager.getToken();
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-
-// Handle token expiry automatically
-api.interceptors.response.use(
-  (response) => response,
+api.interceptors.request.use(
+  (config) => {
+    const token = tokenManager.getToken();
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    
+    console.log('API: Making request to:', config.url);
+    console.log('API: Request headers:', config.headers);
+    
+    return config;
+  },
   (error) => {
+    console.error('API: Request interceptor error:', error);
+    return Promise.reject(error);
+  }
+);
+
+// Handle responses and token expiry
+api.interceptors.response.use(
+  (response) => {
+    console.log('API: Response received:', response);
+    return response;
+  },
+  (error) => {
+    console.error('API: Response error:', error);
     if (error.response?.status === 401) {
-      // Token expired or invalid
       tokenManager.removeToken();
       window.location.href = '/signin';
     }
@@ -45,24 +73,62 @@ api.interceptors.response.use(
 export const authAPI = {
   register: async (userData) => {
     try {
+      console.log('API: Attempting to register with:', userData);
       const response = await api.post('/auth/register', userData);
-      if (response.data.success && response.data.data.token) {
-        tokenManager.setToken(response.data.data.token);
+      
+      console.log('API: Registration response received:', response.data);
+      
+      // Extract token and user data
+      const token = response.data?.data?.token;
+      const user = response.data?.data?.user;
+      
+      if (token && user) {
+        console.log('API: Found token and user, saving:', { token, user });
+        tokenManager.setToken(token);
+        
+        // Return both for AuthContext
+        return {
+          success: true,
+          token: token,
+          user: user,
+          data: response.data
+        };
+      } else {
+        console.error('API: No token or user found in response!');
+        return response.data;
       }
-      return response.data;
     } catch (error) {
+      console.error('API: Registration error:', error);
       throw error.response?.data || { success: false, message: 'Registration failed' };
     }
   },
 
   login: async (credentials) => {
     try {
+      console.log('API: Attempting to login with:', credentials);
       const response = await api.post('/auth/login', credentials);
-      if (response.data.success && response.data.data.token) {
-        tokenManager.setToken(response.data.data.token);
+      
+      console.log('API: Login response received:', response.data);
+      
+      const token = response.data?.data?.token;
+      const user = response.data?.data?.user;
+      
+      if (token && user) {
+        console.log('API: Found login token and user, saving:', { token, user });
+        tokenManager.setToken(token);
+        
+        return {
+          success: true,
+          token: token,
+          user: user,
+          data: response.data
+        };
+      } else {
+        console.error('API: No token or user found in login response!');
+        return response.data;
       }
-      return response.data;
     } catch (error) {
+      console.error('API: Login error:', error);
       throw error.response?.data || { success: false, message: 'Login failed' };
     }
   },
@@ -82,30 +148,42 @@ export const authAPI = {
   },
 };
 
-// Birthday API functions
+// Birthday API functions (unchanged)
 export const birthdayAPI = {
-  // Get all birthdays for the authenticated user
   getBirthdays: async () => {
-    const response = await api.get('/birthdays');
-    return response.data.data.birthdays; // Extract just the birthdays array
+    try {
+      const response = await api.get('/birthdays');
+      return response.data.data?.birthdays || [];
+    } catch (error) {
+      throw error.response?.data || { success: false, message: 'Failed to get birthdays' };
+    }
   },
 
-  // Create a new birthday
   createBirthday: async (birthdayData) => {
-    const response = await api.post('/birthdays', birthdayData);
-    return response.data.data.birthday; // Return the created birthday
+    try {
+      const response = await api.post('/birthdays', birthdayData);
+      return response.data.data?.birthday;
+    } catch (error) {
+      throw error.response?.data || { success: false, message: 'Failed to create birthday' };
+    }
   },
 
-  // Update an existing birthday
   updateBirthday: async (id, birthdayData) => {
-    const response = await api.put(`/birthdays/${id}`, birthdayData);
-    return response.data.data.birthday; // Return the updated birthday
+    try {
+      const response = await api.put(`/birthdays/${id}`, birthdayData);
+      return response.data.data?.birthday;
+    } catch (error) {
+      throw error.response?.data || { success: false, message: 'Failed to update birthday' };
+    }
   },
 
-  // Delete a birthday
   deleteBirthday: async (id) => {
-    const response = await api.delete(`/birthdays/${id}`);
-    return response.data;
+    try {
+      const response = await api.delete(`/birthdays/${id}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { success: false, message: 'Failed to delete birthday' };
+    }
   },
 };
 

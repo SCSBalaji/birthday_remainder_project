@@ -39,6 +39,18 @@ function formatDate(dateStr) {
   return date.toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" });
 }
 
+// Helper function to format date for input field (YYYY-MM-DD)
+function formatDateForInput(dateStr) {
+  if (!dateStr) return '';
+  
+  const date = new Date(dateStr);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  
+  return `${year}-${month}-${day}`;
+}
+
 export default function App() {
   return (
     <AuthProvider>
@@ -88,7 +100,7 @@ function BirthdayBuddyHome() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
-  // UI state (keep these the same)
+  // UI state
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ name: "", date: "", relationship: "", bio: "" });
   const [editId, setEditId] = useState(null);
@@ -168,9 +180,11 @@ function BirthdayBuddyHome() {
       if (editId) {
         // Update existing birthday
         await birthdayAPI.updateBirthday(editId, form);
+        console.log('Birthday updated successfully');
       } else {
         // Create new birthday
         await birthdayAPI.createBirthday(form);
+        console.log('Birthday created successfully');
       }
       
       // Reload birthdays from server
@@ -187,9 +201,13 @@ function BirthdayBuddyHome() {
   }
 
   function handleEditClick(birthday) {
+    console.log('Editing birthday:', birthday);
+    console.log('Original date:', birthday.date);
+    console.log('Formatted date for input:', formatDateForInput(birthday.date));
+    
     setForm({
       name: birthday.name,
-      date: birthday.date,
+      date: formatDateForInput(birthday.date), // Use the helper function
       relationship: birthday.relationship || "",
       bio: birthday.bio || ""
     });
@@ -263,14 +281,18 @@ function BirthdayBuddyHome() {
             {showCalendar ? "Birthday List" : "View Calendar"}
           </button>
           <button
-            onClick={() => { setShowForm(true); setEditId(null); setForm({ name: "", date: "", relationship: "", bio: "" }); }}
+            onClick={() => { 
+              setShowForm(true); 
+              setEditId(null); 
+              setForm({ name: "", date: "", relationship: "", bio: "" }); 
+            }}
             className="add-birthday-btn"
           >
             <span role="img" aria-label="Cake">🎂</span>
             Add Birthday
           </button>
           <button onClick={logout} className="add-birthday-btn" style={{ marginLeft: '10px' }}>
-            👋 Logout
+            👋 Logout ({user?.name})
           </button>
         </div>
       </div>
@@ -323,6 +345,11 @@ function BirthdayBuddyHome() {
                 required
                 className="form-input"
               />
+              {editId && (
+                <small style={{ color: '#ffb4fc', fontSize: '12px' }}>
+                  Current: {form.date}
+                </small>
+              )}
             </div>
             <div className="form-group">
               <label className="form-label">Relationship</label>
