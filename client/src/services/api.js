@@ -16,15 +16,19 @@ const api = axios.create({
 export const tokenManager = {
   getToken: () => {
     const token = localStorage.getItem('token');
-    console.log('Getting token from localStorage:', token);
+    console.log('TokenManager: Getting token from localStorage:', token);
     return token;
   },
   setToken: (token) => {
-    console.log('Setting token to localStorage:', token);
+    console.log('TokenManager: Setting token to localStorage:', token);
     localStorage.setItem('token', token);
+    
+    // Verify it was saved
+    const saved = localStorage.getItem('token');
+    console.log('TokenManager: Verification - token after save:', saved);
   },
   removeToken: () => {
-    console.log('Removing token from localStorage');
+    console.log('TokenManager: Removing token from localStorage');
     localStorage.removeItem('token');
   },
   isLoggedIn: () => !!localStorage.getItem('token'),
@@ -38,13 +42,13 @@ api.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
     
-    console.log('Making request to:', config.url);
-    console.log('Request headers:', config.headers);
+    console.log('API: Making request to:', config.url);
+    console.log('API: Request headers:', config.headers);
     
     return config;
   },
   (error) => {
-    console.error('Request interceptor error:', error);
+    console.error('API: Request interceptor error:', error);
     return Promise.reject(error);
   }
 );
@@ -52,11 +56,11 @@ api.interceptors.request.use(
 // Handle responses and token expiry
 api.interceptors.response.use(
   (response) => {
-    console.log('Response received:', response);
+    console.log('API: Response received:', response);
     return response;
   },
   (error) => {
-    console.error('Response error:', error);
+    console.error('API: Response error:', error);
     if (error.response?.status === 401) {
       tokenManager.removeToken();
       window.location.href = '/signin';
@@ -69,68 +73,62 @@ api.interceptors.response.use(
 export const authAPI = {
   register: async (userData) => {
     try {
-      console.log('Attempting to register with:', userData);
+      console.log('API: Attempting to register with:', userData);
       const response = await api.post('/auth/register', userData);
       
-      console.log('Full registration response:', response);
-      console.log('Response data:', response.data);
-      console.log('Response data structure:', JSON.stringify(response.data, null, 2));
+      console.log('API: Registration response received:', response.data);
       
-      // Check different possible token locations
-      const tokenFromData = response.data?.token;
-      const tokenFromDataData = response.data?.data?.token;
-      const tokenFromUser = response.data?.user?.token;
+      // Extract token and user data
+      const token = response.data?.data?.token;
+      const user = response.data?.data?.user;
       
-      console.log('Token from response.data.token:', tokenFromData);
-      console.log('Token from response.data.data.token:', tokenFromDataData);
-      console.log('Token from response.data.user.token:', tokenFromUser);
-      
-      // Try to find token in the response
-      const token = tokenFromData || tokenFromDataData || tokenFromUser;
-      
-      if (token) {
-        console.log('Found token, saving:', token);
+      if (token && user) {
+        console.log('API: Found token and user, saving:', { token, user });
         tokenManager.setToken(token);
+        
+        // Return both for AuthContext
+        return {
+          success: true,
+          token: token,
+          user: user,
+          data: response.data
+        };
       } else {
-        console.error('No token found in response!');
+        console.error('API: No token or user found in response!');
+        return response.data;
       }
-      
-      return response.data;
     } catch (error) {
-      console.error('Registration error:', error);
+      console.error('API: Registration error:', error);
       throw error.response?.data || { success: false, message: 'Registration failed' };
     }
   },
 
   login: async (credentials) => {
     try {
-      console.log('Attempting to login with:', credentials);
+      console.log('API: Attempting to login with:', credentials);
       const response = await api.post('/auth/login', credentials);
       
-      console.log('Full login response:', response);
-      console.log('Login response data:', response.data);
+      console.log('API: Login response received:', response.data);
       
-      // Check different possible token locations
-      const tokenFromData = response.data?.token;
-      const tokenFromDataData = response.data?.data?.token;
-      const tokenFromUser = response.data?.user?.token;
+      const token = response.data?.data?.token;
+      const user = response.data?.data?.user;
       
-      console.log('Login token from response.data.token:', tokenFromData);
-      console.log('Login token from response.data.data.token:', tokenFromDataData);
-      console.log('Login token from response.data.user.token:', tokenFromUser);
-      
-      const token = tokenFromData || tokenFromDataData || tokenFromUser;
-      
-      if (token) {
-        console.log('Found login token, saving:', token);
+      if (token && user) {
+        console.log('API: Found login token and user, saving:', { token, user });
         tokenManager.setToken(token);
+        
+        return {
+          success: true,
+          token: token,
+          user: user,
+          data: response.data
+        };
       } else {
-        console.error('No token found in login response!');
+        console.error('API: No token or user found in login response!');
+        return response.data;
       }
-      
-      return response.data;
     } catch (error) {
-      console.error('Login error:', error);
+      console.error('API: Login error:', error);
       throw error.response?.data || { success: false, message: 'Login failed' };
     }
   },
@@ -150,7 +148,7 @@ export const authAPI = {
   },
 };
 
-// Birthday API functions (rest remains the same)
+// Birthday API functions (unchanged)
 export const birthdayAPI = {
   getBirthdays: async () => {
     try {

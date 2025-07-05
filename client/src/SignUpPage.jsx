@@ -34,17 +34,25 @@ export default function SignUpPage() {
     }
 
     try {
+      console.log('SignUpPage: Attempting registration');
       const response = await authAPI.register({
         name: form.name,
         email: form.email,
         password: form.password
       });
       
-      // Auto-login after successful registration
-      login(response.token, response.user);
-      navigate("/");
+      console.log('SignUpPage: Registration response:', response);
+      
+      if (response.success && response.token && response.user) {
+        console.log('SignUpPage: Calling login with:', response.token, response.user);
+        login(response.token, response.user);
+        navigate("/");
+      } else {
+        setError(response.message || "Registration failed");
+      }
     } catch (err) {
-      setError(err.response?.data?.message || "Registration failed");
+      console.error('SignUpPage: Registration error:', err);
+      setError(err.message || "Registration failed");
     } finally {
       setLoading(false);
     }
