@@ -1,5 +1,7 @@
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { authAPI } from "./services/api";
+import { useAuth } from "./contexts/AuthContext";
 import "./SignUpPage.css";
 
 export default function SignUpPage() {
@@ -9,17 +11,63 @@ export default function SignUpPage() {
     password: "",
     confirm: "",
   });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const { login } = useAuth();
+  const navigate = useNavigate();
 
   function handleChange(e) {
     setForm({ ...form, [e.target.name]: e.target.value });
   }
 
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+
+    // Validate passwords match
+    if (form.password !== form.confirm) {
+      setError("Passwords don't match");
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const response = await authAPI.register({
+        name: form.name,
+        email: form.email,
+        password: form.password
+      });
+      
+      // Auto-login after successful registration
+      login(response.token, response.user);
+      navigate("/");
+    } catch (err) {
+      setError(err.response?.data?.message || "Registration failed");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <div className="signup-bg">
-      <form className="signup-form">
+      <form className="signup-form" onSubmit={handleSubmit}>
         <div className="signup-title">
           <span role="img" aria-label="Cake">🎂</span> Sign Up
         </div>
+
+        {error && (
+          <div style={{ 
+            color: '#ff6b6b', 
+            marginBottom: '15px', 
+            textAlign: 'center',
+            fontSize: '14px'
+          }}>
+            {error}
+          </div>
+        )}
+
         <div className="signup-input-group">
           <label className="signup-label">Full Name</label>
           <input
@@ -70,8 +118,8 @@ export default function SignUpPage() {
             className="signup-input"
           />
         </div>
-        <button type="submit" className="signup-btn">
-          Sign Up
+        <button type="submit" className="signup-btn" disabled={loading}>
+          {loading ? "Creating Account..." : "Sign Up"}
         </button>
         <div className="signup-footer">
           Already have an account?{" "}
