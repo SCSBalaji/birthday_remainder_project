@@ -81,6 +81,10 @@ async function createTables() {
         date DATE NOT NULL,
         relationship VARCHAR(100),
         bio TEXT,
+        phone_number VARCHAR(20),
+        custom_message TEXT,
+        auto_message_enabled BOOLEAN DEFAULT FALSE,
+        last_message_sent DATE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
       )

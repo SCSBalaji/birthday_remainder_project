@@ -10,7 +10,7 @@ router.use(authenticateToken);
 router.get('/', async (req, res) => {
   try {
     const [birthdays] = await req.db.execute(
-      'SELECT id, name, date, relationship, bio, created_at FROM birthdays WHERE user_id = ? ORDER BY date ASC',
+      'SELECT id, name, date, relationship, bio, phone_number, custom_message, auto_message_enabled, last_message_sent, created_at FROM birthdays WHERE user_id = ? ORDER BY date ASC',
       [req.user.userId]
     );
 
@@ -36,7 +36,7 @@ router.get('/', async (req, res) => {
 // POST /api/birthdays - Create new birthday
 router.post('/', async (req, res) => {
   try {
-    const { name, date, relationship, bio } = req.body;
+    const { name, date, relationship, bio, phone_number, custom_message, auto_message_enabled } = req.body;
 
     // Validation
     if (!name || !date) {
@@ -57,15 +57,33 @@ router.post('/', async (req, res) => {
       });
     }
 
-    // Insert new birthday
+    // Validate phone number format if provided (basic validation for international format)
+    if (phone_number && !/^\+?[\d\s\-\(\)]{7,20}$/.test(phone_number)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Phone number must be a valid format with 7-20 digits',
+        error: 'Invalid phone number format'
+      });
+    }
+
+    // Insert new birthday with WhatsApp fields
     const [result] = await req.db.execute(
-      'INSERT INTO birthdays (user_id, name, date, relationship, bio) VALUES (?, ?, ?, ?, ?)',
-      [req.user.userId, name, date, relationship || null, bio || null]
+      'INSERT INTO birthdays (user_id, name, date, relationship, bio, phone_number, custom_message, auto_message_enabled) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [
+        req.user.userId, 
+        name, 
+        date, 
+        relationship || null, 
+        bio || null,
+        phone_number || null,
+        custom_message || null,
+        auto_message_enabled || false
+      ]
     );
 
     // Get the created birthday
     const [newBirthday] = await req.db.execute(
-      'SELECT id, name, date, relationship, bio, created_at FROM birthdays WHERE id = ?',
+      'SELECT id, name, date, relationship, bio, phone_number, custom_message, auto_message_enabled, last_message_sent, created_at FROM birthdays WHERE id = ?',
       [result.insertId]
     );
 
@@ -91,7 +109,7 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const birthdayId = req.params.id;
-    const { name, date, relationship, bio } = req.body;
+    const { name, date, relationship, bio, phone_number, custom_message, auto_message_enabled } = req.body;
 
     // Check if birthday exists and belongs to user
     const [existingBirthdays] = await req.db.execute(
@@ -126,15 +144,34 @@ router.put('/:id', async (req, res) => {
       });
     }
 
-    // Update birthday
+    // Validate phone number format if provided
+    if (phone_number && !/^\+?[\d\s\-\(\)]{7,20}$/.test(phone_number)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Phone number must be a valid format with 7-20 digits',
+        error: 'Invalid phone number format'
+      });
+    }
+
+    // Update birthday with WhatsApp fields
     await req.db.execute(
-      'UPDATE birthdays SET name = ?, date = ?, relationship = ?, bio = ? WHERE id = ? AND user_id = ?',
-      [name, date, relationship || null, bio || null, birthdayId, req.user.userId]
+      'UPDATE birthdays SET name = ?, date = ?, relationship = ?, bio = ?, phone_number = ?, custom_message = ?, auto_message_enabled = ? WHERE id = ? AND user_id = ?',
+      [
+        name, 
+        date, 
+        relationship || null, 
+        bio || null,
+        phone_number || null,
+        custom_message || null,
+        auto_message_enabled || false,
+        birthdayId, 
+        req.user.userId
+      ]
     );
 
     // Get updated birthday
     const [updatedBirthday] = await req.db.execute(
-      'SELECT id, name, date, relationship, bio, created_at FROM birthdays WHERE id = ?',
+      'SELECT id, name, date, relationship, bio, phone_number, custom_message, auto_message_enabled, last_message_sent, created_at FROM birthdays WHERE id = ?',
       [birthdayId]
     );
 
@@ -204,7 +241,7 @@ router.get('/upcoming', async (req, res) => {
   try {
     // Calculate upcoming birthdays in the next 30 days
     const [birthdays] = await req.db.execute(`
-      SELECT id, name, date, relationship, bio,
+      SELECT id, name, date, relationship, bio, phone_number, custom_message, auto_message_enabled, last_message_sent,
              CASE 
                WHEN DATE_FORMAT(date, '%m-%d') >= DATE_FORMAT(CURDATE(), '%m-%d')
                THEN DATEDIFF(
