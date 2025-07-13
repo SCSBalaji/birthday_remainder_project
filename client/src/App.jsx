@@ -24,14 +24,49 @@ const SORT_OPTIONS = [
   { value: "youngest", label: "Youngest First" },
 ];
 
+// Replace the existing daysUntil function with this fixed version:
 function daysUntil(dateStr) {
   const today = new Date();
+  today.setHours(0, 0, 0, 0); // Reset time to midnight for accurate comparison
+  
   const thisYear = today.getFullYear();
   const birthday = new Date(dateStr);
   birthday.setFullYear(thisYear);
-  if (birthday < today) birthday.setFullYear(thisYear + 1);
+  birthday.setHours(0, 0, 0, 0); // Reset time to midnight
+  
+  // If birthday already passed this year, set to next year
+  if (birthday < today) {
+    birthday.setFullYear(thisYear + 1);
+  }
+  
   const diff = Math.ceil((birthday - today) / (1000 * 60 * 60 * 24));
   return diff;
+}
+
+// Simple function for clean text display
+function getBirthdayCountdownText(dateStr) {
+  const days = daysUntil(dateStr);
+  
+  if (days === 0) {
+    return "🎉 Today!";
+  } else if (days === 1) {
+    return "Tomorrow!";
+  } else {
+    return `In ${days} days`;
+  }
+}
+
+// Clean display for "Coming Up Next" section - no special styling
+function getNextBirthdayDisplay(dateStr) {
+  const days = daysUntil(dateStr);
+  
+  if (days === 0) {
+    return "🎉 TODAY!";
+  } else if (days === 1) {
+    return "🥳 Tomorrow";
+  } else {
+    return `${days} Days`;
+  }
 }
 
 function formatDate(dateStr) {
@@ -459,7 +494,7 @@ function BirthdayBuddyHome() {
               <div className="next-birthday-card">
                 <div className="next-birthday-days">
                   <span role="img" aria-label="Cake">🎂</span>
-                  {nextBirthday && nextBirthday.date ? daysUntil(nextBirthday.date) : "--"} Days
+                  {nextBirthday && nextBirthday.date ? getNextBirthdayDisplay(nextBirthday.date) : "-- Days"}
                 </div>
                 <div className="next-birthday-name">
                   {nextBirthday?.name ? `${nextBirthday.name}'s Birthday` : "No upcoming birthdays"}
@@ -471,12 +506,8 @@ function BirthdayBuddyHome() {
                   {nextBirthday?.bio || ""}
                 </div>
                 <div className="next-birthday-actions">
-                  <button className="gift-btn">
-                    Send Gift
-                  </button>
-                  <button className="reminder-btn">
-                    Set Reminder
-                  </button>
+                  <button className="gift-btn">Send Gift</button>
+                  <button className="reminder-btn">Set Reminder</button>
                 </div>
               </div>
             </div>
@@ -587,7 +618,7 @@ function BirthdayBuddyHome() {
                     )}
                     
                     <div className="birthday-countdown">
-                      In {daysUntil(b.date)} days
+                      {getBirthdayCountdownText(b.date)}
                     </div>
                   </div>
                 ))
