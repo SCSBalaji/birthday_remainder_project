@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import SignUpPage from "./SignUpPage";
 import SignInPage from "./SignInPage";
+import VerifyEmailPage from "./VerifyEmailPage";
+import ResendVerificationPage from "./ResendVerificationPage";
 import CalendarView from "./CalendarView";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { birthdayAPI } from "./services/api";
@@ -94,6 +96,8 @@ export default function App() {
           <Route path="/" element={<ProtectedRoute><BirthdayBuddyHome /></ProtectedRoute>} />
           <Route path="/signup" element={<SignUpPage />} />
           <Route path="/signin" element={<SignInPage />} />
+          <Route path="/verify-email" element={<VerifyEmailPage />} />
+          <Route path="/resend-verification" element={<ResendVerificationPage />} />
           <Route path="*" element={<Navigate to="/signin" replace />} />
         </Routes>
       </Router>

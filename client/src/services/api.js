@@ -146,6 +146,34 @@ export const authAPI = {
     tokenManager.removeToken();
     window.location.href = '/signin';
   },
+
+  // Verify email with token
+  verifyEmail: async (token) => {
+    try {
+      console.log('API: Attempting to verify email with token');
+      const response = await api.post('/auth/verify-email', { token });
+      
+      console.log('API: Email verification response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('API: Email verification error:', error);
+      throw error;
+    }
+  },
+
+  // Resend verification email
+  resendVerification: async (email) => {
+    try {
+      console.log('API: Attempting to resend verification for:', email);
+      const response = await api.post('/auth/resend-verification', { email });
+      
+      console.log('API: Resend verification response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('API: Resend verification error:', error);
+      throw error;
+    }
+  },
 };
 
 // Birthday API functions (unchanged)
