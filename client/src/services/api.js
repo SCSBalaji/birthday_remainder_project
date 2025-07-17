@@ -180,6 +180,33 @@ export const authAPI = {
       throw error;
     }
   },
+
+  // Password reset API functions
+  forgotPassword: async (email) => {
+    try {
+      console.log('🔐 API: Requesting password reset for:', email);
+      const response = await api.post('/auth/forgot-password', { email });
+      
+      console.log('✅ API: Forgot password response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('❌ API: Forgot password error:', error);
+      throw error;
+    }
+  },
+
+  resetPassword: async (token, password) => {
+    try {
+      console.log('🔐 API: Resetting password with token');
+      const response = await api.post('/auth/reset-password', { token, password });
+      
+      console.log('✅ API: Reset password response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('❌ API: Reset password error:', error);
+      throw error;
+    }
+  },
 };
 
 // Birthday API functions (unchanged)

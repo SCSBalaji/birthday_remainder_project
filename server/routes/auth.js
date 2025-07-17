@@ -2,6 +2,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { authenticateToken } = require('../middleware/auth');
+const crypto = require('crypto');
 
 // Email verification imports
 const { generateVerificationToken, getExpirationTime, isTokenExpired, canResendToken } = require('../utils/tokenUtils');
@@ -513,6 +514,229 @@ router.get('/verification-status/:email', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Internal server error while checking verification status',
+      error: error.message
+    });
+  }
+});
+
+// POST /api/auth/forgot-password
+router.post('/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    console.log(`🔐 [${new Date().toISOString()}] Password reset request for:`, email);
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email address is required',
+        error: 'Missing email'
+      });
+    }
+
+    // Check if user exists and is verified
+    const [users] = await req.db.execute(
+      'SELECT id, name, email, email_verified_at FROM users WHERE email = ?',
+      [email]
+    );
+
+    if (users.length === 0) {
+      // For security, don't reveal if email exists or not
+      return res.json({
+        success: true,
+        message: 'If an account with this email exists, you will receive a password reset link shortly.'
+      });
+    }
+
+    const user = users[0];
+
+    // Check if user is verified
+    if (!user.email_verified_at) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please verify your email first before resetting password.',
+        error: 'Email not verified'
+      });
+    }
+
+    // Generate reset token
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+
+    // Store reset token
+    await req.db.execute(
+      'INSERT INTO password_resets (user_id, token, expires_at) VALUES (?, ?, ?)',
+      [user.id, resetToken, expiresAt]
+    );
+
+    // Send reset email
+    const resetLink = `https://crispy-orbit-x55rwvrvq567fvq47-5173.app.github.dev/reset-password?token=${resetToken}`;
+    
+    const emailSubject = '🔐 Reset Your Birthday Buddy Password';
+    const emailHTML = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 20px; background: #f5f5f5; }
+          .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+          .header { background: linear-gradient(135deg, #b621fe 0%, #1fd1f9 100%); color: white; padding: 30px; text-align: center; }
+          .content { padding: 30px; }
+          .button { display: inline-block; background: linear-gradient(135deg, #b621fe 0%, #1fd1f9 100%); color: white; text-decoration: none; padding: 12px 30px; border-radius: 8px; font-weight: bold; margin: 20px 0; }
+          .footer { background: #f8f9fa; padding: 20px; text-align: center; color: #666; font-size: 14px; }
+          .warning { background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 8px; margin: 20px 0; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>🔐 Password Reset Request</h1>
+          </div>
+          <div class="content">
+            <h2>Hello ${user.name}!</h2>
+            <p>We received a request to reset your password for your Birthday Buddy account.</p>
+            <p>Click the button below to reset your password:</p>
+            <p style="text-align: center;">
+              <a href="${resetLink}" class="button">Reset My Password</a>
+            </p>
+            <div class="warning">
+              <strong>⚠️ Important:</strong>
+              <ul>
+                <li>This link expires in <strong>15 minutes</strong></li>
+                <li>If you didn't request this reset, please ignore this email</li>
+                <li>Never share this link with anyone</li>
+              </ul>
+            </div>
+            <p>If the button doesn't work, copy and paste this link:</p>
+            <p style="word-break: break-all; background: #f8f9fa; padding: 10px; border-radius: 4px;">${resetLink}</p>
+          </div>
+          <div class="footer">
+            <p>Birthday Buddy - Never forget a birthday again! 🎂</p>
+            <p>This email was sent to ${user.email}</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    // Send email using your existing email service
+    const nodemailer = require('nodemailer');
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_APP_PASSWORD
+      }
+    });
+
+    await transporter.sendMail({
+      from: `"Birthday Buddy" <${process.env.EMAIL_USER}>`,
+      to: user.email,
+      subject: emailSubject,
+      html: emailHTML
+    });
+
+    console.log(`✅ Password reset email sent to: ${user.email}`);
+
+    res.json({
+      success: true,
+      message: 'If an account with this email exists, you will receive a password reset link shortly.'
+    });
+
+  } catch (error) {
+    console.error('❌ Forgot password error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+});
+
+// POST /api/auth/reset-password
+router.post('/reset-password', async (req, res) => {
+  try {
+    const { token, password } = req.body;
+
+    console.log(`🔐 [${new Date().toISOString()}] Password reset attempt with token:`, token?.substring(0, 20) + '...');
+
+    if (!token || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Reset token and new password are required',
+        error: 'Missing required fields'
+      });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password must be at least 6 characters long',
+        error: 'Password too short'
+      });
+    }
+
+    // Find valid reset token
+    const [tokenRows] = await req.db.execute(
+      'SELECT pr.*, u.id as user_id, u.name, u.email FROM password_resets pr JOIN users u ON pr.user_id = u.id WHERE pr.token = ? AND pr.expires_at > NOW() AND pr.used_at IS NULL',
+      [token]
+    );
+
+    if (tokenRows.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid or expired reset token',
+        error: 'Token not found or expired'
+      });
+    }
+
+    const resetRequest = tokenRows[0];
+
+    // Hash new password
+    const bcrypt = require('bcryptjs');
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+    // Update user password
+    await req.db.execute(
+      'UPDATE users SET password = ? WHERE id = ?',
+      [hashedPassword, resetRequest.user_id]
+    );
+
+    // Mark reset token as used
+    await req.db.execute(
+      'UPDATE password_resets SET used_at = NOW() WHERE id = ?',
+      [resetRequest.id]
+    );
+
+    // Generate login token for auto-login
+    const jwt = require('jsonwebtoken');
+    const authToken = jwt.sign(
+      { userId: resetRequest.user_id, email: resetRequest.email },
+      process.env.JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+
+    console.log(`✅ Password reset successful for user: ${resetRequest.email}`);
+
+    res.json({
+      success: true,
+      message: 'Password reset successful! You are now logged in.',
+      data: {
+        user: {
+          id: resetRequest.user_id,
+          name: resetRequest.name,
+          email: resetRequest.email
+        },
+        token: authToken
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Reset password error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
       error: error.message
     });
   }
