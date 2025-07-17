@@ -259,80 +259,105 @@ router.get('/profile', authenticateToken, async (req, res) => {
 
 // POST /api/auth/verify-email - Verify email with token
 router.post('/verify-email', async (req, res) => {
+  const startTime = Date.now();
   try {
     const { token } = req.body;
+    
+    console.log(`🔍 [${new Date().toISOString()}] Verification request for token: ${token?.substring(0, 20)}...`);
 
     if (!token) {
+      console.log('❌ No token provided');
       return res.status(400).json({
         success: false,
         message: 'Verification token is required',
-        error: 'Missing token'
+        error: 'No token provided'
       });
     }
 
-    // Get token from database
-    const verificationData = await getVerificationToken(req.db, token);
+    // Check if token exists and hasn't expired
+    const [tokenRows] = await req.db.execute(
+      'SELECT * FROM email_verifications WHERE token = ? AND expires_at > NOW() AND used_at IS NULL',
+      [token]
+    );
+
+    console.log(`🔍 Token lookup result: ${tokenRows.length > 0 ? 'Found valid token' : 'Token not found/expired/used'}`);
+
+    if (tokenRows.length === 0) {
+      console.log('❌ Invalid or expired token');
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid or expired verification token',
+        error: 'Token not found or expired'
+      });
+    }
+
+    const verification = tokenRows[0];
+    console.log(`🔍 Token expires at: ${verification.expires_at}, Current time: ${new Date().toISOString()}`);
+
+    // Get user details
+    const [userRows] = await req.db.execute(
+      'SELECT id, name, email FROM users WHERE id = ?',
+      [verification.user_id]
+    );
+
+    if (userRows.length === 0) {
+      console.log('❌ User not found');
+      return res.status(400).json({
+        success: false,
+        message: 'User not found',
+        error: 'Associated user not found'
+      });
+    }
+
+    const user = userRows[0];
+    console.log(`🔍 Verifying user: ${user.email}`);
     
-    if (!verificationData) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid verification token',
-        error: 'Token not found or already used'
-      });
-    }
+    // Mark user as verified
+    await req.db.execute(
+      'UPDATE users SET email_verified_at = NOW() WHERE id = ?',
+      [user.id]
+    );
 
-    // Check if user is already verified
-    if (verificationData.email_verified) {
-      return res.status(400).json({
-        success: false,
-        message: 'Email is already verified',
-        error: 'Already verified'
-      });
-    }
+    // Mark token as used
+    await req.db.execute(
+      'UPDATE email_verifications SET used_at = NOW() WHERE id = ?',
+      [verification.id]
+    );
 
-    // Check if token is expired
-    if (isTokenExpired(verificationData.expires_at)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Verification token has expired. Please request a new one.',
-        error: 'Token expired'
-      });
-    }
+    // Generate JWT token for auto-login
+    const jwt = require('jsonwebtoken');
+    const authToken = jwt.sign(
+      { userId: user.id, email: user.email },
+      process.env.JWT_SECRET,
+      { expiresIn: '24h' }
+    );
 
-    // Mark token as used and verify user
-    const result = await markTokenAsUsed(req.db, token, verificationData.user_id);
-    
-    if (!result.success) {
-      return res.status(500).json({
-        success: false,
-        message: 'Failed to verify email',
-        error: result.error
-      });
-    }
-
-    // Generate JWT token for immediate login after verification
-    const jwtToken = generateToken(verificationData.user_id, verificationData.email);
-
-    res.json({
+    const response = {
       success: true,
-      message: 'Email verified successfully! Welcome to Birthday Buddy!',
+      message: 'Email verified successfully',
       data: {
         user: {
-          id: verificationData.user_id,
-          name: verificationData.name,
-          email: verificationData.email,
-          email_verified: true
+          id: user.id,
+          name: user.name,
+          email: user.email
         },
-        token: jwtToken,
-        verified_at: new Date().toISOString()
+        token: authToken
       }
-    });
+    };
+
+    const processingTime = Date.now() - startTime;
+    console.log(`✅ [${new Date().toISOString()}] Verification successful in ${processingTime}ms`);
+    console.log('✅ Sending response:', JSON.stringify(response, null, 2));
+
+    res.json(response);
 
   } catch (error) {
-    console.error('Email verification error:', error);
+    const processingTime = Date.now() - startTime;
+    console.error(`❌ [${new Date().toISOString()}] Verification failed in ${processingTime}ms:`, error);
+    
     res.status(500).json({
       success: false,
-      message: 'Internal server error during email verification',
+      message: 'Internal server error during verification',
       error: error.message
     });
   }

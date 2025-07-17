@@ -13,12 +13,15 @@ export default function SignUpPage() {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [registrationSuccess, setRegistrationSuccess] = useState(false);
+  const [userEmail, setUserEmail] = useState("");
 
   const { login } = useAuth();
   const navigate = useNavigate();
 
   function handleChange(e) {
     setForm({ ...form, [e.target.name]: e.target.value });
+    if (error) setError(""); // Clear error when user starts typing
   }
 
   async function handleSubmit(e) {
@@ -33,6 +36,13 @@ export default function SignUpPage() {
       return;
     }
 
+    // Validate password length
+    if (form.password.length < 6) {
+      setError("Password must be at least 6 characters long");
+      setLoading(false);
+      return;
+    }
+
     try {
       console.log('SignUpPage: Attempting registration');
       const response = await authAPI.register({
@@ -43,19 +53,65 @@ export default function SignUpPage() {
       
       console.log('SignUpPage: Registration response:', response);
       
-      if (response.success && response.token && response.user) {
-        console.log('SignUpPage: Calling login with:', response.token, response.user);
-        login(response.token, response.user);
-        navigate("/");
+      if (response.success) {
+        // Show success message instead of auto-login
+        setRegistrationSuccess(true);
+        setUserEmail(form.email);
       } else {
         setError(response.message || "Registration failed");
       }
     } catch (err) {
       console.error('SignUpPage: Registration error:', err);
-      setError(err.message || "Registration failed");
+      
+      if (err.response?.data?.message) {
+        setError(err.response.data.message);
+      } else {
+        setError("Registration failed. Please try again.");
+      }
     } finally {
       setLoading(false);
     }
+  }
+
+  // If registration successful, show success message
+  if (registrationSuccess) {
+    return (
+      <div className="signup-bg">
+        <div className="signup-form success-form">
+          <div className="signup-title">
+            <span role="img" aria-label="Party">🎉</span> Registration Successful!
+          </div>
+
+          <div className="success-content">
+            <div className="success-icon">📧</div>
+            <h3>Check Your Email!</h3>
+            <p>
+              We've sent a verification email to <strong>{userEmail}</strong>
+            </p>
+            <p>
+              Please check your inbox and click the verification link to activate your account.
+            </p>
+            
+            <div className="success-note">
+              <strong>💡 Pro tip:</strong> Check your spam folder if you don't see the email in a few minutes.
+            </div>
+
+            <div className="success-actions">
+              <Link to="/signin" className="signin-link-btn">
+                Go to Sign In
+              </Link>
+              <Link to="/resend-verification" className="resend-link-btn">
+                Resend Email
+              </Link>
+            </div>
+
+            <div className="success-footer">
+              <p>The verification link expires in 15 minutes for security.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -66,12 +122,7 @@ export default function SignUpPage() {
         </div>
 
         {error && (
-          <div style={{ 
-            color: '#ff6b6b', 
-            marginBottom: '15px', 
-            textAlign: 'center',
-            fontSize: '14px'
-          }}>
+          <div className="error-message">
             {error}
           </div>
         )}
@@ -83,12 +134,14 @@ export default function SignUpPage() {
             name="name"
             value={form.name}
             onChange={handleChange}
-            autoComplete="off"
-            placeholder="Enter your name"
+            autoComplete="name"
+            placeholder="Enter your full name"
             required
+            disabled={loading}
             className="signup-input"
           />
         </div>
+
         <div className="signup-input-group">
           <label className="signup-label">Email Address</label>
           <input
@@ -96,12 +149,14 @@ export default function SignUpPage() {
             name="email"
             value={form.email}
             onChange={handleChange}
-            autoComplete="off"
+            autoComplete="email"
             placeholder="your@email.com"
             required
+            disabled={loading}
             className="signup-input"
           />
         </div>
+
         <div className="signup-input-group">
           <label className="signup-label">Password</label>
           <input
@@ -109,11 +164,14 @@ export default function SignUpPage() {
             name="password"
             value={form.password}
             onChange={handleChange}
-            placeholder="Password"
+            autoComplete="new-password"
+            placeholder="At least 6 characters"
             required
+            disabled={loading}
             className="signup-input"
           />
         </div>
+
         <div className="signup-input-group">
           <label className="signup-label">Confirm Password</label>
           <input
@@ -121,14 +179,25 @@ export default function SignUpPage() {
             name="confirm"
             value={form.confirm}
             onChange={handleChange}
-            placeholder="Repeat password"
+            autoComplete="new-password"
+            placeholder="Repeat your password"
             required
+            disabled={loading}
             className="signup-input"
           />
         </div>
+
         <button type="submit" className="signup-btn" disabled={loading}>
-          {loading ? "Creating Account..." : "Sign Up"}
+          {loading ? (
+            <>
+              <span className="spinner-small"></span>
+              Creating Account...
+            </>
+          ) : (
+            "Create Account"
+          )}
         </button>
+
         <div className="signup-footer">
           Already have an account?{" "}
           <Link to="/signin" className="signup-link">

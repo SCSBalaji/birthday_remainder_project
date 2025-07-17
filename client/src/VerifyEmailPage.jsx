@@ -28,42 +28,64 @@ export default function VerifyEmailPage() {
   const verifyEmail = async (token) => {
     try {
       setStatus('verifying');
+      setMessage('Verifying your email address...');
+      
+      console.log('🔄 VerifyEmailPage: Starting verification for token:', token?.substring(0, 20) + '...');
       
       const response = await authAPI.verifyEmail(token);
       
-      if (response.success) {
+      console.log('✅ VerifyEmailPage: Verification response:', response);
+      
+      // Check for successful response
+      if (response && response.success) {
         setStatus('success');
         setMessage('Email verified successfully! Welcome to Birthday Buddy!');
-        setUserInfo(response.data.user);
         
-        // Auto-login the user
-        if (response.data.token) {
-          login(response.data.token, response.data.user);
+        if (response.data && response.data.user) {
+          setUserInfo(response.data.user);
           
-          // Redirect to main app after 3 seconds
-          setTimeout(() => {
-            navigate('/');
-          }, 3000);
+          // Auto-login with token
+          if (response.data.token) {
+            console.log('🔑 VerifyEmailPage: Auto-logging in user');
+            login(response.data.token, response.data.user);
+            
+            // Redirect after showing success message
+            setTimeout(() => {
+              navigate('/');
+            }, 2000);
+          }
         }
       } else {
+        // Handle unsuccessful response
         setStatus('error');
-        setMessage(response.message || 'Verification failed');
+        setMessage(response?.message || 'Verification failed');
       }
     } catch (error) {
-      console.error('Verification error:', error);
+      console.error('❌ VerifyEmailPage: Verification error:', error);
       
-      if (error.response?.status === 400) {
-        const errorMsg = error.response.data.message;
-        if (errorMsg.includes('expired')) {
+      // More precise error handling
+      if (error.response?.data) {
+        const errorData = error.response.data;
+        const errorMsg = errorData.message || '';
+        
+        console.log('🔍 VerifyEmailPage: Error message received:', errorMsg);
+        
+        if (errorMsg.includes('expired') || errorMsg.includes('Invalid or expired')) {
           setStatus('expired');
           setMessage('Your verification link has expired. Please request a new one.');
+        } else if (errorMsg.includes('already verified') || errorMsg.includes('already used')) {
+          setStatus('success');
+          setMessage('Your email is already verified! You can now sign in.');
         } else {
           setStatus('error');
-          setMessage(errorMsg);
+          setMessage(errorMsg || 'Verification failed');
         }
+      } else if (error.message) {
+        setStatus('error');
+        setMessage(error.message);
       } else {
         setStatus('error');
-        setMessage('Failed to verify email. Please try again.');
+        setMessage('Network error. Please check your connection and try again.');
       }
     }
   };

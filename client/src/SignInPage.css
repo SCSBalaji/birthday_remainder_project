@@ -106,6 +106,115 @@
   text-decoration: underline;
 }
 
+/* Error Message */
+.error-message {
+  background: rgba(248, 113, 113, 0.1);
+  border: 1px solid #f87171;
+  color: #f87171;
+  padding: 12px 15px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  text-align: center;
+  font-size: 14px;
+}
+
+/* Email Verification Needed */
+.verification-needed {
+  text-align: center;
+  padding: 20px;
+  background: rgba(251, 191, 36, 0.1);
+  border: 1px solid #fbbf24;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  color: #fff;
+}
+
+.verification-icon {
+  font-size: 48px;
+  margin-bottom: 15px;
+}
+
+.verification-needed h3 {
+  color: #fbbf24;
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.verification-needed p {
+  font-size: 14px;
+  line-height: 1.5;
+  margin-bottom: 20px;
+  opacity: 0.9;
+}
+
+.verification-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+}
+
+.resend-verification-btn {
+  background: linear-gradient(90deg, #fbbf24 0%, #f59e0b 100%);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 20px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+  font-size: 14px;
+}
+
+.resend-verification-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.resend-verification-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.manual-resend-link {
+  color: #1fd1f9;
+  text-decoration: none;
+  font-size: 14px;
+}
+
+.manual-resend-link:hover {
+  text-decoration: underline;
+}
+
+/* Loading Spinner */
+.spinner-small {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid transparent;
+  border-top: 2px solid #fff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-right: 8px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Enhanced Input States */
+.signin-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.signin-submit:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* Mobile Responsive */
 @media (max-width: 600px) {
   .signin-form {
     min-width: unset;
@@ -123,5 +232,21 @@
   .signin-submit {
     font-size: 15px;
     padding: 10px 0;
+  }
+  .verification-needed {
+    padding: 15px;
+  }
+  
+  .verification-icon {
+    font-size: 40px;
+  }
+  
+  .verification-needed h3 {
+    font-size: 16px;
+  }
+  
+  .resend-verification-btn {
+    width: 100%;
+    max-width: 250px;
   }
 }
