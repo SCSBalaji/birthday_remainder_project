@@ -78,23 +78,18 @@ export const authAPI = {
       
       console.log('API: Registration response received:', response.data);
       
-      // Extract token and user data
-      const token = response.data?.data?.token;
-      const user = response.data?.data?.user;
-      
-      if (token && user) {
-        console.log('API: Found token and user, saving:', { token, user });
-        tokenManager.setToken(token);
+      // For email verification workflow, we don't expect a token immediately
+      if (response.data && response.data.success) {
+        console.log('API: Registration successful, email verification required');
         
-        // Return both for AuthContext
         return {
           success: true,
-          token: token,
-          user: user,
+          message: response.data.message,
+          requiresVerification: true,
           data: response.data
         };
       } else {
-        console.error('API: No token or user found in response!');
+        console.error('API: Registration failed');
         return response.data;
       }
     } catch (error) {
