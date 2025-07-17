@@ -224,6 +224,122 @@ app.get('/test-verification-tokens', async (req, res) => {
   }
 });
 
+// Reset all test data - DEVELOPMENT ONLY
+app.delete('/reset-all-data', async (req, res) => {
+  try {
+    console.log('🗑️ [RESET] Clearing all test data...');
+    
+    // Clear all tables in correct order (respecting foreign key constraints)
+    await db.execute('DELETE FROM email_verifications');
+    await db.execute('DELETE FROM birthdays');
+    await db.execute('DELETE FROM users');
+    
+    // Reset auto-increment counters
+    await db.execute('ALTER TABLE email_verifications AUTO_INCREMENT = 1');
+    await db.execute('ALTER TABLE birthdays AUTO_INCREMENT = 1');
+    await db.execute('ALTER TABLE users AUTO_INCREMENT = 1');
+    
+    console.log('✅ [RESET] All data cleared successfully');
+    
+    res.json({ 
+      success: true,
+      message: 'All test data cleared successfully',
+      cleared: {
+        users: 'All users removed',
+        birthdays: 'All birthdays removed', 
+        email_verifications: 'All verification tokens removed'
+      }
+    });
+  } catch (error) {
+    console.error('❌ [RESET] Error clearing data:', error);
+    res.status(500).json({ 
+      success: false,
+      error: error.message 
+    });
+  }
+});
+
+// Reset only user data (keep birthdays structure)
+app.delete('/reset-users-only', async (req, res) => {
+  try {
+    console.log('🗑️ [RESET] Clearing user data only...');
+    
+    await db.execute('DELETE FROM email_verifications');
+    await db.execute('DELETE FROM birthdays');
+    await db.execute('DELETE FROM users');
+    
+    // Reset auto-increment
+    await db.execute('ALTER TABLE users AUTO_INCREMENT = 1');
+    await db.execute('ALTER TABLE birthdays AUTO_INCREMENT = 1');
+    await db.execute('ALTER TABLE email_verifications AUTO_INCREMENT = 1');
+    
+    console.log('✅ [RESET] User data cleared successfully');
+    
+    res.json({ 
+      success: true,
+      message: 'All user accounts and associated data cleared',
+      note: 'You can now register with any email again'
+    });
+  } catch (error) {
+    console.error('❌ [RESET] Error clearing user data:', error);
+    res.status(500).json({ 
+      success: false,
+      error: error.message 
+    });
+  }
+});
+
+// Clear only expired verification tokens
+app.delete('/cleanup-expired', async (req, res) => {
+  try {
+    console.log('🗑️ [CLEANUP] Removing expired verification tokens...');
+    
+    const [result] = await db.execute(
+      'DELETE FROM email_verifications WHERE expires_at < NOW() OR used_at IS NOT NULL'
+    );
+    
+    console.log(`✅ [CLEANUP] Removed ${result.affectedRows} expired/used tokens`);
+    
+    res.json({ 
+      success: true,
+      message: `Cleaned up ${result.affectedRows} expired verification tokens`
+    });
+  } catch (error) {
+    console.error('❌ [CLEANUP] Error:', error);
+    res.status(500).json({ 
+      success: false,
+      error: error.message 
+    });
+  }
+});
+
+// Get current data status
+app.get('/data-status', async (req, res) => {
+  try {
+    const [users] = await db.execute('SELECT COUNT(*) as count FROM users');
+    const [birthdays] = await db.execute('SELECT COUNT(*) as count FROM birthdays');
+    const [tokens] = await db.execute('SELECT COUNT(*) as count FROM email_verifications');
+    const [verifiedUsers] = await db.execute('SELECT COUNT(*) as count FROM users WHERE email_verified_at IS NOT NULL');
+    const [unverifiedUsers] = await db.execute('SELECT COUNT(*) as count FROM users WHERE email_verified_at IS NULL');
+    
+    res.json({
+      success: true,
+      data: {
+        total_users: users[0].count,
+        verified_users: verifiedUsers[0].count,
+        unverified_users: unverifiedUsers[0].count,
+        total_birthdays: birthdays[0].count,
+        verification_tokens: tokens[0].count
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      success: false,
+      error: error.message 
+    });
+  }
+});
+
 // Start server
 app.listen(PORT, '0.0.0.0', async () => {
   console.log(`🚀 Server is running on http://0.0.0.0:${PORT}`);
