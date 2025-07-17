@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { authAPI } from './services/api';
 import { useAuth } from './contexts/AuthContext';
@@ -12,6 +12,7 @@ export default function VerifyEmailPage() {
   const [status, setStatus] = useState('verifying'); // verifying, success, error, expired
   const [message, setMessage] = useState('');
   const [userInfo, setUserInfo] = useState(null);
+  const hasVerified = useRef(false);
 
   useEffect(() => {
     const token = searchParams.get('token');
@@ -22,8 +23,14 @@ export default function VerifyEmailPage() {
       return;
     }
 
+    // Prevent double calls using ref
+    if (hasVerified.current) {
+      return;
+    }
+
+    hasVerified.current = true;
     verifyEmail(token);
-  }, [searchParams]);
+  }, [searchParams]); // Remove 'status' from dependencies to prevent re-runs
 
   const verifyEmail = async (token) => {
     try {
