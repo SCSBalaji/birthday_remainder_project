@@ -63,10 +63,30 @@ export default function SignUpPage() {
     } catch (err) {
       console.error('SignUpPage: Registration error:', err);
       
-      if (err.response?.data?.message) {
-        setError(err.response.data.message);
+      if (err.response?.data) {
+        const errorData = err.response.data;
+        
+        // Handle specific error cases
+        if (err.response.status === 409) {
+          // User already exists but not verified
+          if (errorData.message && errorData.message.includes('not verified')) {
+            setRegistrationSuccess(true);
+            setUserEmail(form.email);
+            return; // Show the "check your email" success page
+          } 
+          // User already exists and is verified
+          else if (errorData.message && errorData.message.includes('already exists')) {
+            setError('An account with this email already exists. Please sign in instead.');
+          }
+          // Generic conflict error
+          else {
+            setError(errorData.message || 'This email is already registered.');
+          }
+        } else {
+          setError(errorData.message || "Registration failed. Please try again.");
+        }
       } else {
-        setError("Registration failed. Please try again.");
+        setError("Registration failed. Please check your connection and try again.");
       }
     } finally {
       setLoading(false);
@@ -93,7 +113,7 @@ export default function SignUpPage() {
             </p>
             
             <div className="success-note">
-              <strong>💡 Pro tip:</strong> Check your spam folder if you don't see the email in a few minutes.
+              <strong>💡 Already registered?</strong> If you've registered before but haven't verified your email, we've sent you a new verification link.
             </div>
 
             <div className="success-actions">

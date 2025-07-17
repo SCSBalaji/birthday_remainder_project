@@ -150,6 +150,8 @@ router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
 
+    console.log(`🔍 [${new Date().toISOString()}] Login attempt for email:`, email);
+
     // Validation
     if (!email || !password) {
       return res.status(400).json({
@@ -159,9 +161,9 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    // Find user
+    // Find user with verification status
     const [users] = await req.db.execute(
-      'SELECT id, name, email, password, email_verified FROM users WHERE email = ?',
+      'SELECT id, name, email, password, email_verified_at FROM users WHERE email = ?',
       [email]
     );
 
@@ -174,16 +176,7 @@ router.post('/login', async (req, res) => {
     }
 
     const user = users[0];
-
-    // Check if email is verified
-    if (!user.email_verified) {
-      return res.status(403).json({
-        success: false,
-        message: 'Please verify your email before logging in. Check your inbox for the verification link.',
-        error: 'Email not verified',
-        requires_verification: true
-      });
-    }
+    console.log(`🔍 User found: ${user.email}, Verified: ${user.email_verified_at ? 'Yes' : 'No'}`);
 
     // Check password
     const isPasswordValid = await bcrypt.compare(password, user.password);
@@ -193,6 +186,17 @@ router.post('/login', async (req, res) => {
         success: false,
         message: 'Invalid email or password',
         error: 'Password mismatch'
+      });
+    }
+
+    // Check if email is verified
+    if (!user.email_verified_at) {
+      console.log('❌ Login blocked: Email not verified');
+      return res.status(403).json({
+        success: false,
+        message: 'Please verify your email before logging in. Check your inbox for the verification link.',
+        error: 'Email not verified',
+        requires_verification: true
       });
     }
 

@@ -43,10 +43,15 @@ export default function SignInPage() {
       if (err.response?.data) {
         const errorData = err.response.data;
         
-        if (errorData.requires_verification) {
+        console.log('🔍 SignIn: Error data received:', errorData);
+        
+        // Check for verification requirement
+        if (errorData.requires_verification === true) {
+          console.log('📧 SignIn: Email verification required');
           setNeedsVerification(true);
-          setError("");
+          setError(""); // Clear any previous errors
         } else {
+          console.log('❌ SignIn: Other error:', errorData.message);
           setError(errorData.message || "Login failed");
         }
       } else {
