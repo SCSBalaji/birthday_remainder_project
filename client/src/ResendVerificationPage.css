@@ -1,0 +1,239 @@
+.resend-verification-bg {
+  min-height: 100vh;
+  background: radial-gradient(ellipse at top left, #191970 0%, #4e0066 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Segoe UI', Arial, sans-serif;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.resend-verification-container {
+  background: #18103d;
+  border-radius: 16px;
+  box-shadow: 0 8px 32px #0008;
+  max-width: 450px;
+  width: 100%;
+  overflow: hidden;
+}
+
+.resend-verification-header {
+  background: linear-gradient(90deg, #b621fe 0%, #1fd1f9 100%);
+  padding: 30px;
+  text-align: center;
+}
+
+.resend-verification-header .app-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: white;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.resend-verification-content {
+  padding: 40px 30px;
+  color: #fff;
+}
+
+.resend-verification-content h2 {
+  font-size: 24px;
+  font-weight: 700;
+  color: #ffb4fc;
+  margin-bottom: 10px;
+  text-align: center;
+}
+
+.resend-verification-content > p {
+  text-align: center;
+  opacity: 0.9;
+  margin-bottom: 30px;
+  line-height: 1.5;
+}
+
+/* Success State */
+.resend-success {
+  text-align: center;
+}
+
+.resend-success .success-icon {
+  font-size: 48px;
+  margin-bottom: 20px;
+}
+
+.resend-success h3 {
+  color: #4ade80;
+  font-size: 20px;
+  margin-bottom: 15px;
+}
+
+.resend-success p {
+  color: #4ade80;
+  margin-bottom: 30px;
+}
+
+.success-actions {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.success-actions .signin-btn,
+.success-actions .resend-again-btn {
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: transform 0.2s ease;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.success-actions .signin-btn {
+  background: #29214a;
+  color: white;
+}
+
+.success-actions .resend-again-btn {
+  background: linear-gradient(90deg, #ff6ec4 0%, #7873f5 100%);
+  color: white;
+}
+
+.success-actions .signin-btn:hover,
+.success-actions .resend-again-btn:hover {
+  transform: translateY(-2px);
+}
+
+/* Form Styles */
+.resend-form {
+  width: 100%;
+}
+
+.error-message {
+  background: rgba(248, 113, 113, 0.1);
+  border: 1px solid #f87171;
+  color: #f87171;
+  padding: 12px 15px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  text-align: center;
+  font-size: 14px;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: #ffb4fc;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 12px 15px;
+  border-radius: 8px;
+  border: none;
+  background: #29214a;
+  color: white;
+  font-size: 16px;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.form-group input:focus {
+  background: #3a2f5a;
+  box-shadow: 0 0 0 2px #ffb4fc;
+}
+
+.form-group input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.resend-btn {
+  width: 100%;
+  padding: 12px;
+  border-radius: 8px;
+  border: none;
+  background: linear-gradient(90deg, #ff6ec4 0%, #7873f5 100%);
+  color: white;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+  margin-bottom: 20px;
+}
+
+.resend-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+}
+
+.resend-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.form-footer {
+  text-align: center;
+  font-size: 14px;
+  color: #ffb4fc;
+}
+
+.form-footer a {
+  color: #1fd1f9;
+  text-decoration: none;
+}
+
+.form-footer a:hover {
+  text-decoration: underline;
+}
+
+.separator {
+  margin: 0 10px;
+  opacity: 0.6;
+}
+
+/* Mobile Responsive */
+@media (max-width: 600px) {
+  .resend-verification-bg {
+    padding: 10px;
+  }
+  
+  .resend-verification-container {
+    max-width: 100%;
+  }
+  
+  .resend-verification-header {
+    padding: 20px;
+  }
+  
+  .resend-verification-header .app-title {
+    font-size: 24px;
+  }
+  
+  .resend-verification-content {
+    padding: 30px 20px;
+  }
+  
+  .success-actions {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .success-actions .signin-btn,
+  .success-actions .resend-again-btn {
+    width: 100%;
+    max-width: 200px;
+    text-align: center;
+  }
+}

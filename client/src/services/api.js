@@ -146,6 +146,78 @@ export const authAPI = {
     tokenManager.removeToken();
     window.location.href = '/signin';
   },
+
+  // Verify email with token
+  verifyEmail: async (token) => {
+    try {
+      console.log('API: Attempting email verification with token:', token.substring(0, 20) + '...');
+      const response = await api.post('/auth/verify-email', { token });
+      
+      console.log('API: Verification response received:', response.data);
+      
+      const tokenData = response.data?.data?.token;
+      const userData = response.data?.data?.user;
+      
+      if (tokenData && userData) {
+        console.log('API: Found verification token and user, saving:', { tokenData, userData });
+        tokenManager.setToken(tokenData);
+        
+        return {
+          success: true,
+          token: tokenData,
+          user: userData,
+          data: response.data
+        };
+      } else {
+        console.log('API: Verification response structure:', response.data);
+        return response.data;
+      }
+    } catch (error) {
+      console.error('API: Email verification error:', error);
+      throw error;
+    }
+  },
+
+  // Resend verification email
+  resendVerification: async (email) => {
+    try {
+      console.log('API: Attempting to resend verification for:', email);
+      const response = await api.post('/auth/resend-verification', { email });
+      
+      console.log('API: Resend verification response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('API: Resend verification error:', error);
+      throw error;
+    }
+  },
+
+  // Password reset API functions
+  forgotPassword: async (email) => {
+    try {
+      console.log('🔐 API: Requesting password reset for:', email);
+      const response = await api.post('/auth/forgot-password', { email });
+      
+      console.log('✅ API: Forgot password response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('❌ API: Forgot password error:', error);
+      throw error;
+    }
+  },
+
+  resetPassword: async (token, password) => {
+    try {
+      console.log('🔐 API: Resetting password with token');
+      const response = await api.post('/auth/reset-password', { token, password });
+      
+      console.log('✅ API: Reset password response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('❌ API: Reset password error:', error);
+      throw error;
+    }
+  },
 };
 
 // Birthday API functions (unchanged)
