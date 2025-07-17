@@ -150,9 +150,9 @@ export default function SignInPage() {
             </div>
 
             <div className="signin-forgot">
-              <button type="button" disabled className="signin-forgot-btn">
+              <Link to="/forgot-password" className="signin-forgot-btn">
                 Forgot password?
-              </button>
+              </Link>
             </div>
 
             <button type="submit" className="signin-submit" disabled={loading}>

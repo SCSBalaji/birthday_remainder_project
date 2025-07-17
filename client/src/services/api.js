@@ -150,19 +150,30 @@ export const authAPI = {
   // Verify email with token
   verifyEmail: async (token) => {
     try {
-      console.log('🔄 API: Sending verification request');
+      console.log('API: Attempting email verification with token:', token.substring(0, 20) + '...');
       const response = await api.post('/auth/verify-email', { token });
       
-      console.log('✅ API: Raw response:', response);
-      console.log('✅ API: Response data:', response.data);
+      console.log('API: Verification response received:', response.data);
       
-      // Return the response data directly since it already has the right structure
-      return response.data;
+      const tokenData = response.data?.data?.token;
+      const userData = response.data?.data?.user;
+      
+      if (tokenData && userData) {
+        console.log('API: Found verification token and user, saving:', { tokenData, userData });
+        tokenManager.setToken(tokenData);
+        
+        return {
+          success: true,
+          token: tokenData,
+          user: userData,
+          data: response.data
+        };
+      } else {
+        console.log('API: Verification response structure:', response.data);
+        return response.data;
+      }
     } catch (error) {
-      console.error('❌ API: Verification request failed:', error);
-      console.error('❌ API: Error response:', error.response?.data);
-      
-      // Re-throw the error so VerifyEmailPage can handle it
+      console.error('API: Email verification error:', error);
       throw error;
     }
   },

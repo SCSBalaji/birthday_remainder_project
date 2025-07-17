@@ -262,7 +262,7 @@ router.get('/profile', authenticateToken, async (req, res) => {
   }
 });
 
-// POST /api/auth/verify-email - Verify email with token
+// POST /api/auth/verify-email - Email verification endpoint
 router.post('/verify-email', async (req, res) => {
   const startTime = Date.now();
   try {
@@ -281,70 +281,118 @@ router.post('/verify-email', async (req, res) => {
 
     // Check if token exists and hasn't expired
     const [tokenRows] = await req.db.execute(
-      'SELECT * FROM email_verifications WHERE token = ? AND expires_at > NOW() AND used_at IS NULL',
+      `SELECT ev.*, u.id as user_id, u.name, u.email, u.email_verified_at 
+       FROM email_verifications ev 
+       JOIN users u ON ev.user_id = u.id 
+       WHERE ev.token = ? AND ev.expires_at > NOW() AND ev.used_at IS NULL`,
       [token]
     );
 
     console.log(`🔍 Token lookup result: ${tokenRows.length > 0 ? 'Found valid token' : 'Token not found/expired/used'}`);
 
     if (tokenRows.length === 0) {
-      console.log('❌ Invalid or expired token');
+      // Check if token exists but is expired/used
+      const [expiredTokens] = await req.db.execute(
+        'SELECT ev.*, u.email FROM email_verifications ev JOIN users u ON ev.user_id = u.id WHERE ev.token = ?',
+        [token]
+      );
+      
+      if (expiredTokens.length > 0) {
+        const expiredToken = expiredTokens[0];
+        if (expiredToken.used_at) {
+          console.log('❌ Token already used');
+          return res.status(400).json({
+            success: false,
+            message: 'This verification link has already been used',
+            error: 'Token already used'
+          });
+        } else {
+          console.log('❌ Token expired');
+          return res.status(400).json({
+            success: false,
+            message: 'This verification link has expired. Please request a new one.',
+            error: 'Token expired'
+          });
+        }
+      }
+      
+      console.log('❌ Invalid token');
       return res.status(400).json({
         success: false,
-        message: 'Invalid or expired verification token',
-        error: 'Token not found or expired'
+        message: 'Invalid verification token',
+        error: 'Token not found'
       });
     }
 
     const verification = tokenRows[0];
-    console.log(`🔍 Token expires at: ${verification.expires_at}, Current time: ${new Date().toISOString()}`);
+    console.log(`🔍 User current verification status: ${verification.email_verified_at ? 'Already verified' : 'Not verified'}`);
 
-    // Get user details
-    const [userRows] = await req.db.execute(
-      'SELECT id, name, email FROM users WHERE id = ?',
-      [verification.user_id]
-    );
+    // Check if user is already verified
+    if (verification.email_verified_at) {
+      console.log('✅ User already verified, marking token as used');
+      
+      // Mark token as used
+      await req.db.execute(
+        'UPDATE email_verifications SET used_at = NOW() WHERE id = ?',
+        [verification.id]
+      );
+      
+      // Generate JWT token for auto-login
+      const jwt = require('jsonwebtoken');
+      const authToken = jwt.sign(
+        { userId: verification.user_id, email: verification.email },
+        process.env.JWT_SECRET,
+        { expiresIn: '24h' }
+      );
 
-    if (userRows.length === 0) {
-      console.log('❌ User not found');
-      return res.status(400).json({
-        success: false,
-        message: 'User not found',
-        error: 'Associated user not found'
+      return res.json({
+        success: true,
+        message: 'Email already verified! Welcome back.',
+        data: {
+          user: {
+            id: verification.user_id,
+            name: verification.name,
+            email: verification.email
+          },
+          token: authToken
+        }
       });
     }
 
-    const user = userRows[0];
-    console.log(`🔍 Verifying user: ${user.email}`);
+    console.log(`🔍 Verifying user: ${verification.email}`);
     
     // Mark user as verified
-    await req.db.execute(
+    const [updateResult] = await req.db.execute(
       'UPDATE users SET email_verified_at = NOW() WHERE id = ?',
-      [user.id]
+      [verification.user_id]
     );
+    
+    console.log(`🔍 User update result: ${updateResult.affectedRows} rows affected`);
 
     // Mark token as used
-    await req.db.execute(
+    const [tokenUpdateResult] = await req.db.execute(
       'UPDATE email_verifications SET used_at = NOW() WHERE id = ?',
       [verification.id]
     );
+    
+    console.log(`🔍 Token update result: ${tokenUpdateResult.affectedRows} rows affected`);
 
     // Generate JWT token for auto-login
     const jwt = require('jsonwebtoken');
     const authToken = jwt.sign(
-      { userId: user.id, email: user.email },
+      { userId: verification.user_id, email: verification.email },
       process.env.JWT_SECRET,
       { expiresIn: '24h' }
     );
 
     const response = {
       success: true,
-      message: 'Email verified successfully',
+      message: 'Email verified successfully! Welcome to Birthday Buddy!',
       data: {
         user: {
-          id: user.id,
-          name: user.name,
-          email: user.email
+          id: verification.user_id,
+          name: verification.name,
+          email: verification.email
         },
         token: authToken
       }
@@ -352,7 +400,6 @@ router.post('/verify-email', async (req, res) => {
 
     const processingTime = Date.now() - startTime;
     console.log(`✅ [${new Date().toISOString()}] Verification successful in ${processingTime}ms`);
-    console.log('✅ Sending response:', JSON.stringify(response, null, 2));
 
     res.json(response);
 
@@ -570,7 +617,8 @@ router.post('/forgot-password', async (req, res) => {
     );
 
     // Send reset email
-    const resetLink = `https://crispy-orbit-x55rwvrvq567fvq47-5173.app.github.dev/reset-password?token=${resetToken}`;
+    const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
+
     
     const emailSubject = '🔐 Reset Your Birthday Buddy Password';
     const emailHTML = `
@@ -623,14 +671,33 @@ router.post('/forgot-password', async (req, res) => {
     const nodemailer = require('nodemailer');
     const transporter = nodemailer.createTransport({
       service: 'gmail',
+      host: process.env.EMAIL_HOST || 'smtp.gmail.com',
+      port: parseInt(process.env.EMAIL_PORT) || 587,
+      secure: false,
       auth: {
         user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_APP_PASSWORD
+        pass: process.env.EMAIL_PASS // Changed from EMAIL_APP_PASSWORD to EMAIL_PASS
+      },
+      tls: {
+        rejectUnauthorized: false
       }
     });
 
+    // Test connection before sending
+    try {
+      await transporter.verify();
+      console.log('📧 Email transporter verified successfully');
+    } catch (emailConfigError) {
+      console.error('❌ Email transporter verification failed:', emailConfigError);
+      return res.status(500).json({
+        success: false,
+        message: 'Email service is temporarily unavailable',
+        error: 'Email configuration error'
+      });
+    }
+
     await transporter.sendMail({
-      from: `"Birthday Buddy" <${process.env.EMAIL_USER}>`,
+      from: process.env.EMAIL_FROM || `"Birthday Buddy" <${process.env.EMAIL_USER}>`,
       to: user.email,
       subject: emailSubject,
       html: emailHTML

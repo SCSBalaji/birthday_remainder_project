@@ -355,6 +355,109 @@ app.get('/data-status', async (req, res) => {
   }
 });
 
+// Debug endpoint to check user verification status
+app.get('/debug/user-status/:email', async (req, res) => {
+  try {
+    const { email } = req.params;
+    
+    // Get user details
+    const [users] = await db.execute(
+      'SELECT id, name, email, email_verified_at, created_at FROM users WHERE email = ?',
+      [email]
+    );
+    
+    if (users.length === 0) {
+      return res.json({ found: false, message: 'User not found' });
+    }
+    
+    const user = users[0];
+    
+    // Get verification tokens for this user
+    const [tokens] = await db.execute(
+      'SELECT token, expires_at, used_at, created_at FROM email_verifications WHERE user_id = ? ORDER BY created_at DESC',
+      [user.id]
+    );
+    
+    res.json({
+      found: true,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        email_verified_at: user.email_verified_at,
+        is_verified: !!user.email_verified_at,
+        created_at: user.created_at
+      },
+      verification_tokens: tokens.map(token => ({
+        token: token.token.substring(0, 20) + '...',
+        expires_at: token.expires_at,
+        used_at: token.used_at,
+        created_at: token.created_at,
+        is_expired: new Date(token.expires_at) < new Date(),
+        is_used: !!token.used_at
+      }))
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Manual verification endpoint for debugging
+app.post('/manual-verify-user', async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    console.log(`🔧 [MANUAL] Manually verifying user: ${email}`);
+    
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email is required'
+      });
+    }
+    
+    // Update user verification status
+    const [result] = await db.execute(
+      'UPDATE users SET email_verified_at = NOW() WHERE email = ? AND email_verified_at IS NULL',
+      [email]
+    );
+    
+    if (result.affectedRows === 0) {
+      // Check if user exists
+      const [users] = await db.execute('SELECT email_verified_at FROM users WHERE email = ?', [email]);
+      
+      if (users.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found'
+        });
+      } else {
+        return res.json({
+          success: true,
+          message: `User ${email} was already verified`,
+          affected_rows: 0,
+          already_verified: true
+        });
+      }
+    }
+    
+    console.log(`✅ [MANUAL] User ${email} manually verified successfully`);
+    
+    res.json({
+      success: true,
+      message: `User ${email} manually verified successfully`,
+      affected_rows: result.affectedRows
+    });
+    
+  } catch (error) {
+    console.error('❌ [MANUAL] Manual verification error:', error);
+    res.status(500).json({ 
+      success: false,
+      error: error.message 
+    });
+  }
+});
+
 // Start server
 app.listen(PORT, '0.0.0.0', async () => {
   console.log(`🚀 Server is running on http://0.0.0.0:${PORT}`);
