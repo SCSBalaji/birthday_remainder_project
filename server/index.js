@@ -121,6 +121,39 @@ async function createTables() {
       )
     `);
 
+    // Email reminders table
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS email_reminders (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        birthday_id INT NOT NULL,
+        reminder_type ENUM('7_days', '3_days', '1_day') NOT NULL,
+        sent_at TIMESTAMP NULL,
+        scheduled_for DATE NOT NULL,
+        status ENUM('pending', 'sent', 'failed') DEFAULT 'pending',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (birthday_id) REFERENCES birthdays(id) ON DELETE CASCADE,
+        UNIQUE KEY unique_reminder (user_id, birthday_id, reminder_type, scheduled_for)
+      )
+    `);
+
+    // User email preferences table
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS user_email_preferences (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        birthday_reminders_enabled BOOLEAN DEFAULT TRUE,
+        reminder_7_days BOOLEAN DEFAULT TRUE,
+        reminder_3_days BOOLEAN DEFAULT TRUE,
+        reminder_1_day BOOLEAN DEFAULT TRUE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        UNIQUE KEY unique_preferences (user_id)
+      )
+    `);
+
     console.log('✅ Database tables created/verified');
   } catch (error) {
     console.error('❌ Error creating tables:', error.message);
@@ -458,10 +491,370 @@ app.post('/manual-verify-user', async (req, res) => {
   }
 });
 
+// Test reminder service functions
+app.get('/test-reminder-service', async (req, res) => {
+  try {
+    const { getUserEmailPreferences } = require('./services/reminderService');
+    
+    // Test with user ID 1 (change this to an existing user ID in your database)
+    const userId = 1;
+    
+    // Get or create email preferences using req.db
+    const preferences = await getUserEmailPreferences(req.db, userId);
+    
+    res.json({
+      success: true,
+      message: 'Reminder service test successful',
+      data: {
+        userId: userId,
+        preferences: preferences
+      }
+    });
+  } catch (error) {
+    console.error('Test reminder service error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Create missing email reminder tables
+app.get('/create-reminder-tables', async (req, res) => {
+  try {
+    console.log('📋 Creating email reminder tables...');
+    
+    // Create email_reminders table
+    await req.db.execute(`
+      CREATE TABLE IF NOT EXISTS email_reminders (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        birthday_id INT NOT NULL,
+        reminder_type ENUM('7_days', '3_days', '1_day') NOT NULL,
+        sent_at TIMESTAMP NULL,
+        scheduled_for DATE NOT NULL,
+        status ENUM('pending', 'sent', 'failed') DEFAULT 'pending',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (birthday_id) REFERENCES birthdays(id) ON DELETE CASCADE,
+        UNIQUE KEY unique_reminder (user_id, birthday_id, reminder_type, scheduled_for)
+      )
+    `);
+    
+    console.log('✅ Created email_reminders table');
+    
+    // Create user_email_preferences table
+    await req.db.execute(`
+      CREATE TABLE IF NOT EXISTS user_email_preferences (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        birthday_reminders_enabled BOOLEAN DEFAULT TRUE,
+        reminder_7_days BOOLEAN DEFAULT TRUE,
+        reminder_3_days BOOLEAN DEFAULT TRUE,
+        reminder_1_day BOOLEAN DEFAULT TRUE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        UNIQUE KEY unique_preferences (user_id)
+      )
+    `);
+    
+    console.log('✅ Created user_email_preferences table');
+    
+    res.json({ success: true, message: 'Reminder tables created successfully' });
+  } catch (error) {
+    console.error('❌ Error creating reminder tables:', error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Test email template rendering
+app.get('/test-email-template', async (req, res) => {
+  try {
+    const { renderEmailTemplate, formatDateForEmail } = require('./services/emailTemplateService');
+    
+    // Sample data for testing
+    const testData = {
+      userName: 'John Doe',
+      userEmail: 'john@example.com',
+      birthdayPersonName: 'Alice Johnson',
+      birthdayDate: '1990-03-15',
+      formattedBirthdayDate: formatDateForEmail('1990-03-15'),
+      relationship: 'Best Friend',
+      bio: 'Loves chocolate cake and books'
+    };
+    
+    // Test different reminder types
+    const template7Days = await renderEmailTemplate('reminder-7-days', testData);
+    const template3Days = await renderEmailTemplate('reminder-3-days', testData);
+    const template1Day = await renderEmailTemplate('reminder-1-day', testData);
+    
+    res.json({
+      success: true,
+      message: 'Email templates rendered successfully',
+      templates: {
+        '7_days': template7Days.substring(0, 200) + '...',
+        '3_days': template3Days.substring(0, 200) + '...',
+        '1_day': template1Day.substring(0, 200) + '...'
+      }
+    });
+  } catch (error) {
+    console.error('Template test error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Test birthday reminder creation
+app.get('/test-create-reminders', async (req, res) => {
+  try {
+    const { createRemindersForAllBirthdays } = require('./services/birthdayReminderService');
+    
+    const remindersCreated = await createRemindersForAllBirthdays(req.db);
+    
+    res.json({
+      success: true,
+      message: `Created ${remindersCreated} birthday reminders`,
+      remindersCreated
+    });
+  } catch (error) {
+    console.error('Create reminders test error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Test sending pending reminders
+app.get('/test-send-reminders', async (req, res) => {
+  try {
+    const { processPendingReminders } = require('./services/birthdayReminderService');
+    
+    const result = await processPendingReminders(req.db);
+    
+    res.json({
+      success: true,
+      message: 'Reminder processing complete',
+      result
+    });
+  } catch (error) {
+    console.error('Send reminders test error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Debug birthday dates and reminder calculations
+app.get('/debug-birthdays', async (req, res) => {
+  try {
+    const { calculateDaysUntilBirthday } = require('./services/birthdayReminderService');
+    
+    // Get all birthdays with user info
+    const [birthdays] = await req.db.execute(`
+      SELECT b.*, u.name as user_name, u.email as user_email, u.email_verified_at
+      FROM birthdays b
+      JOIN users u ON b.user_id = u.id
+    `);
+    
+    const today = new Date();
+    const debugInfo = birthdays.map(birthday => {
+      const daysUntil = calculateDaysUntilBirthday(birthday.date);
+      return {
+        id: birthday.id,
+        name: birthday.name,
+        date: birthday.date,
+        user_name: birthday.user_name,
+        user_email: birthday.user_email,
+        email_verified: !!birthday.email_verified_at,
+        days_until_birthday: daysUntil,
+        needs_7_day_reminder: daysUntil === 7,
+        needs_3_day_reminder: daysUntil === 3,
+        needs_1_day_reminder: daysUntil === 1
+      };
+    });
+    
+    res.json({
+      success: true,
+      current_date: today.toISOString().split('T')[0],
+      total_birthdays: birthdays.length,
+      birthdays: debugInfo,
+      summary: {
+        need_7_day_reminders: debugInfo.filter(b => b.needs_7_day_reminder).length,
+        need_3_day_reminders: debugInfo.filter(b => b.needs_3_day_reminder).length,
+        need_1_day_reminders: debugInfo.filter(b => b.needs_1_day_reminder).length
+      }
+    });
+  } catch (error) {
+    console.error('Debug birthdays error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Create test birthdays for reminder testing (changed to GET)
+app.get('/create-test-birthdays', async (req, res) => {
+  try {
+    const today = new Date();
+    
+    // Create birthdays for 7 days, 3 days, and 1 day from now
+    const testBirthdays = [
+      {
+        name: 'Test Person 7 Days',
+        date: new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000), // 7 days from now
+        relationship: 'Friend',
+        bio: 'Test birthday for 7-day reminder'
+      },
+      {
+        name: 'Test Person 3 Days',
+        date: new Date(today.getTime() + 3 * 24 * 60 * 60 * 1000), // 3 days from now
+        relationship: 'Family',
+        bio: 'Test birthday for 3-day reminder'
+      },
+      {
+        name: 'Test Person 1 Day',
+        date: new Date(today.getTime() + 1 * 24 * 60 * 60 * 1000), // 1 day from now
+        relationship: 'Colleague',
+        bio: 'Test birthday for 1-day reminder'
+      }
+    ];
+    
+    // Get first verified user
+    const [users] = await req.db.execute('SELECT id FROM users WHERE email_verified_at IS NOT NULL LIMIT 1');
+    
+    if (users.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'No verified users found'
+      });
+    }
+    
+    const userId = users[0].id;
+    const createdBirthdays = [];
+    
+    for (const birthday of testBirthdays) {
+      const dateStr = birthday.date.toISOString().split('T')[0];
+      
+      const [result] = await req.db.execute(
+        'INSERT INTO birthdays (user_id, name, date, relationship, bio) VALUES (?, ?, ?, ?, ?)',
+        [userId, birthday.name, dateStr, birthday.relationship, birthday.bio]
+      );
+      
+      createdBirthdays.push({
+        id: result.insertId,
+        name: birthday.name,
+        date: dateStr,
+        relationship: birthday.relationship,
+        days_until: Math.ceil((birthday.date - today) / (1000 * 60 * 60 * 24))
+      });
+    }
+    
+    res.json({
+      success: true,
+      message: `Created ${createdBirthdays.length} test birthdays`,
+      birthdays: createdBirthdays,
+      user_id: userId,
+      current_date: today.toISOString().split('T')[0]
+    });
+    
+  } catch (error) {
+    console.error('Create test birthdays error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Clean up test birthdays
+app.get('/cleanup-test-birthdays', async (req, res) => {
+  try {
+    const [result] = await req.db.execute(
+      'DELETE FROM birthdays WHERE name LIKE "Test Person%"'
+    );
+    
+    res.json({
+      success: true,
+      message: `Cleaned up ${result.affectedRows} test birthdays`,
+      deleted_count: result.affectedRows
+    });
+  } catch (error) {
+    console.error('Cleanup test birthdays error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 // Start server
 app.listen(PORT, '0.0.0.0', async () => {
   console.log(`🚀 Server is running on http://0.0.0.0:${PORT}`);
   console.log(`🔗 Access via: http://localhost:${PORT} or http://127.0.0.1:${PORT}`);
   await connectToDatabase();
   await startCleanupScheduler();
+});
+
+// Debug email reminders table
+app.get('/debug-email-reminders', async (req, res) => {
+  try {
+    // Get all email reminders with detailed info
+    const [reminders] = await req.db.execute(`
+      SELECT er.*, 
+             b.name as birthday_name, 
+             b.date as birthday_date,
+             u.name as user_name, 
+             u.email as user_email
+      FROM email_reminders er
+      JOIN birthdays b ON er.birthday_id = b.id
+      JOIN users u ON er.user_id = u.id
+      ORDER BY er.created_at DESC
+    `);
+    
+    // Get user preferences
+    const [preferences] = await req.db.execute(`
+      SELECT uep.*, u.name as user_name, u.email as user_email
+      FROM user_email_preferences uep
+      JOIN users u ON uep.user_id = u.id
+    `);
+    
+    res.json({
+      success: true,
+      current_date: new Date().toISOString().split('T')[0],
+      total_reminders: reminders.length,
+      reminders: reminders,
+      user_preferences: preferences
+    });
+  } catch (error) {
+    console.error('Debug email reminders error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Clear all email reminders (for testing)
+app.get('/clear-email-reminders', async (req, res) => {
+  try {
+    const [result] = await req.db.execute('DELETE FROM email_reminders');
+    
+    res.json({
+      success: true,
+      message: `Cleared ${result.affectedRows} email reminders`,
+      deleted_count: result.affectedRows
+    });
+  } catch (error) {
+    console.error('Clear email reminders error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
 });
