@@ -1,4 +1,5 @@
 const nodemailer = require('nodemailer');
+const { renderEmailTemplate, formatDateForEmail } = require('./emailTemplateService');
 
 // Create transporter
 const createTransporter = () => {
@@ -81,6 +82,95 @@ const sendVerificationEmail = async (to, name, verificationToken) => {
   }
 };
 
+// Send birthday reminder email
+const sendBirthdayReminderEmail = async (reminderData) => {
+  try {
+    const transporter = createTransporter();
+    
+    const {
+      user_email: userEmail,
+      user_name: userName,
+      birthday_name: birthdayPersonName,
+      birthday_date: birthdayDate,
+      relationship,
+      bio,
+      reminder_type: reminderType
+    } = reminderData;
+    
+    // Determine template and subject based on reminder type
+    let templateName, subject;
+    
+    switch (reminderType) {
+      case '7_days':
+        templateName = 'reminder-7-days';
+        subject = `🎂 Birthday Reminder: ${birthdayPersonName}'s birthday in 7 days!`;
+        break;
+      case '3_days':
+        templateName = 'reminder-3-days';
+        subject = `🎂 Birthday Alert: ${birthdayPersonName}'s birthday in 3 days!`;
+        break;
+      case '1_day':
+        templateName = 'reminder-1-day';
+        subject = `🚨 Birthday Tomorrow: ${birthdayPersonName}'s birthday is TOMORROW!`;
+        break;
+      default:
+        throw new Error(`Unknown reminder type: ${reminderType}`);
+    }
+    
+    // Prepare template data
+    const templateData = {
+      userName,
+      userEmail,
+      birthdayPersonName,
+      birthdayDate,
+      formattedBirthdayDate: formatDateForEmail(birthdayDate),
+      relationship,
+      bio
+    };
+    
+    // Render the email template
+    const htmlContent = await renderEmailTemplate(templateName, templateData);
+    
+    // Email options
+    const mailOptions = {
+      from: process.env.EMAIL_FROM || `"Birthday Buddy" <${process.env.EMAIL_USER}>`,
+      to: userEmail,
+      subject: subject,
+      html: htmlContent
+    };
+    
+    // Send the email
+    const result = await transporter.sendMail(mailOptions);
+    
+    console.log(`✅ Birthday reminder email sent successfully:`, {
+      messageId: result.messageId,
+      to: userEmail,
+      reminderType: reminderType,
+      birthdayPerson: birthdayPersonName
+    });
+    
+    return { success: true, messageId: result.messageId };
+    
+  } catch (error) {
+    console.error('❌ Birthday reminder email sending failed:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// Send multiple birthday reminder emails
+const sendMultipleBirthdayReminders = async (reminders) => {
+  const results = [];
+  
+  for (const reminder of reminders) {
+    const result = await sendBirthdayReminderEmail(reminder);
+    results.push(result);
+  }
+  
+  return results;
+};
+
 module.exports = {
   sendVerificationEmail,
+  sendBirthdayReminderEmail,
+  sendMultipleBirthdayReminders,
 };
