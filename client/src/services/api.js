@@ -9,7 +9,7 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 10000,
+  timeout: 60000,
 });
 
 // Token management utilities
@@ -289,6 +289,45 @@ export const preferencesAPI = {
       return response.data;
     } catch (error) {
       throw error.response?.data || { success: false, message: 'Failed to get timezones' };
+    }
+  }
+};
+
+// Specialized API for chatbot with longer timeout
+export const chatbotAPI = {
+  chat: async (message) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.post('/chatbot/chat', 
+        { message }, 
+        {
+          baseURL: API_BASE_URL,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          timeout: 60000 // 60 seconds for LLM responses
+        }
+      );
+      return response;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  health: async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get('/chatbot/health', {
+        baseURL: API_BASE_URL,
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        timeout: 10000
+      });
+      return response;
+    } catch (error) {
+      throw error;
     }
   }
 };

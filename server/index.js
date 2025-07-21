@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const cron = require('node-cron');
 const mysql = require('mysql2/promise');
+const chatbotRoutes = require('./routes/chatbot');
 const { createSmartReminders, optimizeReminderTiming, generateReminderInsights } = require('./services/smartSchedulingService');
 require('dotenv').config();
 
@@ -171,6 +172,7 @@ app.use((req, res, next) => {
 
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/chatbot', chatbotRoutes);
 app.use('/api/birthdays', birthdayRoutes);
 app.use('/api/preferences', preferencesRoutes);
 

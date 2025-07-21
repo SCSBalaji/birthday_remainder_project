@@ -6,6 +6,7 @@ import ForgotPasswordPage from "./ForgotPasswordPage";
 import ResetPasswordPage from "./ResetPasswordPage";
 import VerifyEmailPage from "./VerifyEmailPage";
 import EmailPreferencesPage from "./EmailPreferencesPage";
+import ChatBot from './components/ChatBot';
 import ResendVerificationPage from "./ResendVerificationPage";
 import CalendarView from "./CalendarView";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
@@ -643,6 +644,9 @@ function BirthdayBuddyHome() {
           </>
         )}
       </div>
+
+      {/* Add ChatBot at the end, just before closing div */}
+      <ChatBot />
     </div>
   );
 }
