@@ -63,11 +63,32 @@ router.post('/', async (req, res) => {
       [req.user.userId, name, date, relationship || null, bio || null]
     );
 
+    const newBirthdayId = result.insertId;
+
     // Get the created birthday
     const [newBirthday] = await req.db.execute(
       'SELECT id, name, date, relationship, bio, created_at FROM birthdays WHERE id = ?',
-      [result.insertId]
+      [newBirthdayId]
     );
+
+    console.log(`🎂 [CREATE] New birthday created: ${name} (${date}) - ID: ${newBirthdayId}`);
+
+    // ✨ NEW: Check for immediate reminders
+    try {
+      // Import the immediate reminder function
+      const { checkImmediateReminders } = require('../index');
+      
+      console.log(`🔍 [CREATE] Checking immediate reminders for new birthday...`);
+      const reminderResult = await checkImmediateReminders(newBirthdayId, req.user.userId);
+      
+      if (reminderResult.success && reminderResult.emails_sent > 0) {
+        console.log(`📧 [CREATE] Immediate reminder sent for ${name}!`);
+      }
+      
+    } catch (reminderError) {
+      // Don't fail the birthday creation if reminder fails
+      console.error('⚠️ [CREATE] Immediate reminder failed (birthday still created):', reminderError);
+    }
 
     res.status(201).json({
       success: true,
