@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const cron = require('node-cron');
 const mysql = require('mysql2/promise');
 require('dotenv').config();
 
@@ -252,6 +253,61 @@ async function startCleanupScheduler() {
   // Initial cleanup on startup
   if (db) {
     await cleanExpiredTokens(db);
+  }
+}
+
+// Automated Birthday Reminder System
+async function startBirthdayReminderScheduler() {
+  console.log('🎂 Starting Birthday Reminder Scheduler...');
+  
+// Schedule to run daily at 12:00 AM IST (6:30 PM UTC)
+    cron.schedule('30 18 * * *', async () => {
+    console.log('🕘 [CRON] Running daily birthday reminder check at', new Date().toISOString());
+    
+    try {
+      if (!db) {
+        console.error('❌ [CRON] Database not available');
+        return;
+      }
+      
+      const { createRemindersForAllBirthdays, processPendingReminders } = require('./services/birthdayReminderService');
+      
+      console.log('📅 [CRON] Step 1: Creating new reminders for upcoming birthdays...');
+      const remindersCreated = await createRemindersForAllBirthdays(db);
+      
+      console.log('📧 [CRON] Step 2: Processing and sending pending reminders...');
+      const sendResults = await processPendingReminders(db);
+      
+      console.log('✅ [CRON] Daily reminder job completed:', {
+        reminders_created: remindersCreated,
+        emails_sent: sendResults.sent,
+        emails_failed: sendResults.failed,
+        timestamp: new Date().toISOString()
+      });
+      
+    } catch (error) {
+      console.error('❌ [CRON] Birthday reminder job failed:', error);
+    }
+  }, {
+    scheduled: true,
+    timezone: "UTC"
+  });
+  
+  console.log('✅ Birthday reminder cron job scheduled (daily at 12:00 AM IST / 6:30 PM UTC)');
+  
+  // Optional: Run once on startup for testing
+  console.log('🧪 Running initial birthday reminder check...');
+  try {
+    const { createRemindersForAllBirthdays, processPendingReminders } = require('./services/birthdayReminderService');
+    const remindersCreated = await createRemindersForAllBirthdays(db);
+    const sendResults = await processPendingReminders(db);
+    console.log('✅ Initial reminder check completed:', {
+      reminders_created: remindersCreated,
+      emails_sent: sendResults.sent,
+      emails_failed: sendResults.failed
+    });
+  } catch (error) {
+    console.error('❌ Initial reminder check failed:', error);
   }
 }
 
@@ -799,6 +855,7 @@ app.listen(PORT, '0.0.0.0', async () => {
   console.log(`🔗 Access via: http://localhost:${PORT} or http://127.0.0.1:${PORT}`);
   await connectToDatabase();
   await startCleanupScheduler();
+  await startBirthdayReminderScheduler(); // <-- Add this line
 });
 
 // Debug email reminders table
