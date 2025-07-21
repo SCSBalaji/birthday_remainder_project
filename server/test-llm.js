@@ -1,45 +1,44 @@
 const llmService = require('./services/llmService');
 
-async function testLLM() {
-  console.log('🧪 Testing LLM Service...');
+async function testAdvancedLLM() {
+  console.log('🧪 Testing Advanced LLM Service...');
   
-  // Test health check
-  console.log('\n1. Testing health check...');
-  const health = await llmService.healthCheck();
-  console.log('Health result:', {
-    success: health.success,
-    status: health.status,
-    modelsCount: health.models?.length || 0,
-    warmedUp: health.warmedUp
-  });
+  // Test different types of requests
+  const testCases = [
+    {
+      input: "Add my friend Sarah's birthday on March 15th",
+      expectedIntent: 'birthday_operation'
+    },
+    {
+      input: "How many birthdays do I have next month?",
+      expectedIntent: 'data_query'
+    },
+    {
+      input: "How do email reminders work?",
+      expectedIntent: 'technical_help'
+    },
+    {
+      input: "What is Birthday Buddy?",
+      expectedIntent: 'general'
+    }
+  ];
   
-  if (!health.success) {
-    console.log('❌ Ollama not available. Make sure it\'s running.');
-    return;
-  }
-  
-  // Test quick response
-  console.log('\n2. Testing quick response (this may take 30-60 seconds for first request)...');
-  const quickTest = await llmService.quickTest();
-  console.log('Quick test result:', {
-    success: quickTest.success,
-    hasResponse: !!quickTest.response,
-    responseLength: quickTest.response?.length || 0,
-    error: quickTest.error
-  });
-  
-  if (quickTest.success) {
-    console.log('✅ LLM Service is working correctly!');
+  for (const testCase of testCases) {
+    console.log(`\n🔍 Testing: "${testCase.input}"`);
     
-    // Test a real question
-    console.log('\n3. Testing real question...');
-    const realTest = await llmService.generateResponse('What features does Birthday Buddy have?');
-    console.log('Real test result:', {
-      success: realTest.success,
-      response: realTest.response?.substring(0, 100) + '...',
-      model: realTest.model
-    });
+    // Test intent recognition
+    const detectedIntent = await llmService.analyzeIntent(testCase.input);
+    console.log(`Intent detected: ${detectedIntent} (expected: ${testCase.expectedIntent})`);
+    
+    // Test response generation
+    const response = await llmService.generateResponse(testCase.input, null, detectedIntent);
+    
+    if (response.success) {
+      console.log(`✅ Response (${response.intentType}):`, response.response.substring(0, 150) + '...');
+    } else {
+      console.log(`❌ Error:`, response.error);
+    }
   }
 }
 
-testLLM().catch(console.error);
+testAdvancedLLM().catch(console.error);

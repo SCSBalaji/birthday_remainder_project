@@ -1,13 +1,15 @@
 const express = require('express');
 const { authenticateToken } = require('../middleware/auth');
 const llmService = require('../services/llmService');
+const BirthdayOperationService = require('../services/birthdayOperationService');
+const DataQueryService = require('../services/dataQueryService');
 
 const router = express.Router();
 
 // All chatbot routes require authentication
 router.use(authenticateToken);
 
-// POST /api/chatbot/chat - Main chat endpoint
+// POST /api/chatbot/chat - Enhanced main chat endpoint
 router.post('/chat', async (req, res) => {
   try {
     const { message, context } = req.body;
@@ -33,24 +35,82 @@ router.post('/chat', async (req, res) => {
       userId: req.user.userId
     } : null;
 
-    // Generate response using LLM
-    const llmResponse = await llmService.generateResponse(message, userContext);
+    // 🎯 NEW: Analyze intent first
+    const detectedIntent = await llmService.analyzeIntent(message);
+    console.log(`🔍 [CHATBOT] Detected intent: ${detectedIntent}`);
+
+    // Generate AI response with intent-specific prompting
+    const llmResponse = await llmService.generateResponse(message, userContext, detectedIntent);
     
-    if (llmResponse.success) {
-      res.json({
-        success: true,
-        response: llmResponse.response,
-        model: llmResponse.model,
-        responseTime: llmResponse.responseTime,
-        timestamp: new Date().toISOString()
-      });
-    } else {
-      res.status(500).json({
+    if (!llmResponse.success) {
+      return res.status(500).json({
         success: false,
         error: llmResponse.error,
         fallback: llmResponse.fallback
       });
     }
+
+    let finalResponse = {
+      success: true,
+      response: llmResponse.response,
+      model: llmResponse.model,
+      intentType: detectedIntent,
+      responseTime: llmResponse.responseTime,
+      timestamp: new Date().toISOString()
+    };
+
+    // 🎯 NEW: Process intent-specific operations
+    try {
+      if (detectedIntent === 'birthday_operation') {
+        console.log('🔧 [CHATBOT] Processing birthday operation...');
+        
+        const operationService = new BirthdayOperationService(req.db);
+        const operationResult = await operationService.processOperation(llmResponse.response, req.user.userId);
+        
+        if (operationResult.success) {
+          finalResponse.operationResult = operationResult;
+          finalResponse.response = operationResult.message;
+          finalResponse.actionPerformed = true;
+          
+          console.log(`✅ [CHATBOT] Operation successful: ${operationResult.operation}`);
+        } else {
+          finalResponse.operationResult = operationResult;
+          finalResponse.response = `${operationResult.message}\n\nOriginal AI response: ${llmResponse.response}`;
+          finalResponse.actionPerformed = false;
+          
+          console.log(`⚠️ [CHATBOT] Operation failed: ${operationResult.error}`);
+        }
+        
+      } else if (detectedIntent === 'data_query') {
+        console.log('📊 [CHATBOT] Processing data query...');
+        
+        const queryService = new DataQueryService(req.db);
+        const queryResult = await queryService.processQuery(llmResponse.response, req.user.userId);
+        
+        if (queryResult.success) {
+          finalResponse.queryResult = queryResult;
+          finalResponse.response = queryResult.message;
+          finalResponse.dataProvided = true;
+          
+          console.log(`✅ [CHATBOT] Query successful: ${queryResult.queryType}`);
+        } else {
+          finalResponse.queryResult = queryResult;
+          finalResponse.response = `${queryResult.message}\n\nOriginal AI response: ${llmResponse.response}`;
+          finalResponse.dataProvided = false;
+          
+          console.log(`⚠️ [CHATBOT] Query failed: ${queryResult.error}`);
+        }
+      }
+      
+      // For technical_help and general intents, use the AI response as-is
+      
+    } catch (operationError) {
+      console.error('❌ [CHATBOT] Operation processing error:', operationError);
+      // Don't fail the entire request, just use the AI response
+      finalResponse.operationError = operationError.message;
+    }
+
+    res.json(finalResponse);
 
   } catch (error) {
     console.error('❌ [CHATBOT] Chat error:', error);
@@ -62,11 +122,94 @@ router.post('/chat', async (req, res) => {
   }
 });
 
+// POST /api/chatbot/birthday-operation - Specialized birthday operation endpoint
+router.post('/birthday-operation', async (req, res) => {
+  try {
+    const { operation, name, date, relationship, bio } = req.body;
+    
+    console.log(`🔧 [CHATBOT] Direct birthday operation: ${operation}`);
+    
+    const operationService = new BirthdayOperationService(req.db);
+    
+    // Create a structured AI-like response for processing
+    const structuredInput = `
+OPERATION: ${operation.toUpperCase()}
+NAME: ${name || ''}
+DATE: ${date || ''}
+RELATIONSHIP: ${relationship || ''}
+DETAILS: ${bio || ''}
+CONFIRMATION: Direct operation request
+    `.trim();
+    
+    const result = await operationService.processOperation(structuredInput, req.user.userId);
+    
+    res.json({
+      success: result.success,
+      operation: result.operation,
+      data: result.data,
+      message: result.message,
+      error: result.error
+    });
+    
+  } catch (error) {
+    console.error('❌ [CHATBOT] Birthday operation error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error',
+      message: 'Failed to process birthday operation'
+    });
+  }
+});
+
+// GET /api/chatbot/analytics - Smart data analytics endpoint
+router.get('/analytics', async (req, res) => {
+  try {
+    const { type = 'stats' } = req.query;
+    
+    console.log(`📊 [CHATBOT] Analytics request: ${type}`);
+    
+    const queryService = new DataQueryService(req.db);
+    
+    let result;
+    switch (type) {
+      case 'stats':
+        result = await queryService.getBirthdayStats(req.user.userId);
+        break;
+      case 'upcoming':
+        result = await queryService.getBirthdaysByMonth(req.user.userId);
+        break;
+      default:
+        result = await queryService.getBirthdayStats(req.user.userId);
+    }
+    
+    res.json({
+      success: true,
+      type: type,
+      data: result,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ [CHATBOT] Analytics error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get analytics data'
+    });
+  }
+});
+
 // GET /api/chatbot/health - Check LLM health
 router.get('/health', async (req, res) => {
   try {
     const healthStatus = await llmService.healthCheck();
-    res.json(healthStatus);
+    res.json({
+      ...healthStatus,
+      services: {
+        llm: healthStatus.status,
+        birthdayOperations: 'Available',
+        dataQueries: 'Available'
+      }
+    });
   } catch (error) {
     res.status(500).json({
       success: false,
@@ -82,7 +225,8 @@ router.post('/warmup', async (req, res) => {
     await llmService.warmUp();
     res.json({
       success: true,
-      message: 'Model warmed up successfully'
+      message: 'Model warmed up successfully',
+      timestamp: new Date().toISOString()
     });
   } catch (error) {
     res.status(500).json({
@@ -92,26 +236,41 @@ router.post('/warmup', async (req, res) => {
   }
 });
 
-// GET /api/chatbot/info - Get chatbot information
+// GET /api/chatbot/info - Get enhanced chatbot information
 router.get('/info', (req, res) => {
   res.json({
     success: true,
     chatbot: {
       name: 'Birthday Buddy AI Assistant',
       model: 'llama3.2:3b',
+      version: '2.0.0', // Updated for Phase 4
       capabilities: [
-        'Answer questions about Birthday Buddy features',
-        'Help with application usage',
-        'Explain technical functionality',
-        'Provide birthday management guidance'
+        '🎤 Voice commands for birthday management',
+        '📊 Smart data queries and analytics',
+        '🧠 Enhanced project knowledge assistance',
+        '🔧 Natural language CRUD operations',
+        '📈 Real-time birthday statistics',
+        '🎯 Intent-based response routing'
       ],
-      version: '1.0.0',
+      supportedIntents: [
+        'birthday_operation (ADD, EDIT, DELETE, SEARCH)',
+        'data_query (STATISTICS, FILTER, ANALYSIS)',
+        'technical_help (Feature explanations, troubleshooting)',
+        'general (General assistance and questions)'
+      ],
       supportedCommands: [
-        'What features does Birthday Buddy have?',
-        'How do I add a birthday?',
-        'How do email reminders work?',
-        'What are the different relationship types?'
+        '🎂 "Add Sarah\'s birthday on March 15th"',
+        '📅 "How many birthdays do I have next month?"',
+        '🔍 "Show me all family birthdays"',
+        '❌ "Delete John\'s birthday"',
+        '📊 "Give me birthday statistics"',
+        '❓ "How do email reminders work?"'
       ]
+    },
+    services: {
+      birthdayOperations: 'Enhanced CRUD with natural language',
+      dataQueries: 'Smart analytics and insights',
+      intentRecognition: 'AI-powered request classification'
     }
   });
 });
