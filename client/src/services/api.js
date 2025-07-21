@@ -254,4 +254,43 @@ export const birthdayAPI = {
   },
 };
 
+// Preferences API functions
+export const preferencesAPI = {
+  getPreferences: async () => {
+    try {
+      const response = await api.get('/preferences');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { success: false, message: 'Failed to get preferences' };
+    }
+  },
+
+  updatePreferences: async (preferences) => {
+    try {
+      const response = await api.put('/preferences', preferences);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { success: false, message: 'Failed to update preferences' };
+    }
+  },
+
+  sendTestEmail: async (reminderType) => {
+    try {
+      const response = await api.post('/preferences/test', { reminder_type: reminderType });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { success: false, message: 'Failed to send test email' };
+    }
+  },
+
+  getTimezones: async () => {
+    try {
+      const response = await api.get('/preferences/timezones');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { success: false, message: 'Failed to get timezones' };
+    }
+  }
+};
+
 export default api;

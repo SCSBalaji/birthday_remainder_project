@@ -2,11 +2,13 @@ const express = require('express');
 const cors = require('cors');
 const cron = require('node-cron');
 const mysql = require('mysql2/promise');
+const { createSmartReminders, optimizeReminderTiming, generateReminderInsights } = require('./services/smartSchedulingService');
 require('dotenv').config();
 
 // Import routes
 const authRoutes = require('./routes/auth');
 const birthdayRoutes = require('./routes/birthdays');
+const preferencesRoutes = require('./routes/preferences');
 
 // Add this import at the top with other imports
 const { cleanExpiredTokens } = require('./utils/tokenUtils');
@@ -170,6 +172,7 @@ app.use((req, res, next) => {
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/birthdays', birthdayRoutes);
+app.use('/api/preferences', preferencesRoutes);
 
 // Test routes
 app.get('/', (req, res) => {
@@ -1043,6 +1046,914 @@ app.get('/test-immediate-reminders/:birthdayId', async (req, res) => {
     res.json(result);
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Migration endpoint for email preferences enhancement
+app.get('/migrate-email-preferences', async (req, res) => {
+  try {
+    console.log('🔄 [MIGRATION] Starting email preferences schema migration...');
+    
+    // Step 1: Add new columns to user_email_preferences table
+    const newColumns = [
+      'reminder_14_days BOOLEAN DEFAULT FALSE',
+      'reminder_custom_1_days INT DEFAULT NULL',
+      'reminder_custom_2_days INT DEFAULT NULL', 
+      'reminder_time_7_days TIME DEFAULT "09:00:00"',
+      'reminder_time_3_days TIME DEFAULT "09:00:00"',
+      'reminder_time_1_day TIME DEFAULT "09:00:00"',
+      'user_timezone VARCHAR(50) DEFAULT "Asia/Kolkata"',
+      'notification_frequency ENUM("minimal", "standard", "maximum") DEFAULT "standard"'
+    ];
+    
+    const addedColumns = [];
+    const existingColumns = [];
+    
+    for (const column of newColumns) {
+      const columnName = column.split(' ')[0];
+      try {
+        await req.db.execute(`ALTER TABLE user_email_preferences ADD COLUMN ${column}`);
+        addedColumns.push(columnName);
+        console.log(`✅ [MIGRATION] Added column: ${columnName}`);
+      } catch (error) {
+        if (error.code === 'ER_DUP_FIELDNAME') {
+          existingColumns.push(columnName);
+          console.log(`ℹ️ [MIGRATION] Column already exists: ${columnName}`);
+        } else {
+          throw error;
+        }
+      }
+    }
+    
+    // Step 2: Update existing users with default values
+    console.log('🔄 [MIGRATION] Updating existing user preferences...');
+    
+    const [updateResult] = await req.db.execute(`
+      UPDATE user_email_preferences 
+      SET 
+        reminder_14_days = FALSE,
+        reminder_time_7_days = "09:00:00",
+        reminder_time_3_days = "09:00:00", 
+        reminder_time_1_day = "09:00:00",
+        user_timezone = "Asia/Kolkata",
+        notification_frequency = "standard"
+      WHERE reminder_14_days IS NULL OR user_timezone IS NULL
+    `);
+    
+    console.log(`✅ [MIGRATION] Updated ${updateResult.affectedRows} existing user preferences`);
+    
+    // Step 3: Verify the schema
+    const [columns] = await req.db.execute(`
+      SHOW COLUMNS FROM user_email_preferences
+    `);
+    
+    const columnNames = columns.map(col => col.Field);
+    console.log('📋 [MIGRATION] Current table columns:', columnNames);
+    
+    res.json({
+      success: true,
+      message: 'Email preferences schema migration completed successfully',
+      details: {
+        added_columns: addedColumns,
+        existing_columns: existingColumns,
+        users_updated: updateResult.affectedRows,
+        total_columns: columnNames.length,
+        all_columns: columnNames
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ [MIGRATION] Schema migration failed:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      message: 'Schema migration failed'
+    });
+  }
+});
+
+// Test advanced reminder processing
+app.get('/test-advanced-reminders', async (req, res) => {
+  try {
+    console.log('🧪 [TEST] Testing advanced reminder processing...');
+    
+    const { processAdvancedBirthdayReminders } = require('./services/advancedReminderService');
+    const result = await processAdvancedBirthdayReminders(db);
+    
+    res.json({
+      success: true,
+      message: 'Advanced reminder processing test completed',
+      data: result
+    });
+    
+  } catch (error) {
+    console.error('❌ [TEST] Advanced reminder test failed:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Final database enhancement for Phase 2
+app.get('/enhance-database-phase2', async (req, res) => {
+  try {
+    console.log('🔄 [PHASE2] Starting Phase 2 database enhancements...');
+    
+    const enhancements = [];
+    const errors = [];
+    
+    // Add updated_at trigger to user_email_preferences if not exists
+    try {
+      await req.db.execute(`
+        ALTER TABLE user_email_preferences 
+        MODIFY COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      `);
+      enhancements.push('Updated timestamp behavior for user_email_preferences');
+    } catch (error) {
+      if (!error.message.includes('duplicate')) {
+        errors.push(`Timestamp update: ${error.message}`);
+      }
+    }
+    
+    // Add email_reminders table enhancements
+    try {
+      await req.db.execute(`
+        ALTER TABLE email_reminders 
+        ADD COLUMN scheduled_date DATE DEFAULT NULL AFTER scheduled_for
+      `);
+      enhancements.push('Added scheduled_date column to email_reminders');
+    } catch (error) {
+      if (error.code !== 'ER_DUP_FIELDNAME') {
+        errors.push(`Email reminders enhancement: ${error.message}`);
+      } else {
+        enhancements.push('scheduled_date column already exists');
+      }
+    }
+    
+    // Create preferences history table for tracking changes
+    try {
+      await req.db.execute(`
+        CREATE TABLE IF NOT EXISTS user_preference_history (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          user_id INT NOT NULL,
+          changed_field VARCHAR(100) NOT NULL,
+          old_value TEXT,
+          new_value TEXT,
+          changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+          INDEX idx_user_changed (user_id, changed_at)
+        )
+      `);
+      enhancements.push('Created user_preference_history table');
+    } catch (error) {
+      errors.push(`Preference history table: ${error.message}`);
+    }
+    
+    // Update existing user preferences to have proper defaults
+    try {
+      const [updateResult] = await req.db.execute(`
+        UPDATE user_email_preferences 
+        SET 
+          reminder_time_7_days = COALESCE(reminder_time_7_days, '09:00:00'),
+          reminder_time_3_days = COALESCE(reminder_time_3_days, '09:00:00'),
+          reminder_time_1_day = COALESCE(reminder_time_1_day, '09:00:00'),
+          user_timezone = COALESCE(user_timezone, 'Asia/Kolkata'),
+          notification_frequency = COALESCE(notification_frequency, 'standard')
+        WHERE reminder_time_7_days IS NULL 
+           OR reminder_time_3_days IS NULL 
+           OR reminder_time_1_day IS NULL
+           OR user_timezone IS NULL
+           OR notification_frequency IS NULL
+      `);
+      
+      enhancements.push(`Updated ${updateResult.affectedRows} user preferences with proper defaults`);
+    } catch (error) {
+      errors.push(`Preferences update: ${error.message}`);
+    }
+    
+    // Get final table statistics
+    const [userCount] = await req.db.execute('SELECT COUNT(*) as count FROM users');
+    const [prefsCount] = await req.db.execute('SELECT COUNT(*) as count FROM user_email_preferences');
+    const [remindersCount] = await req.db.execute('SELECT COUNT(*) as count FROM email_reminders');
+    
+    res.json({
+      success: true,
+      message: 'Phase 2 database enhancements applied successfully',
+      details: {
+        enhancements: enhancements,
+        errors: errors,
+        total_users: userCount[0].count,
+        total_preferences: prefsCount[0].count,
+        total_reminders: remindersCount[0].count
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ [PHASE2] Error applying enhancements:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Test advanced email templates
+app.get('/test-advanced-email/:birthdayId', async (req, res) => {
+  try {
+    const { birthdayId } = req.params;
+    const { reminder_type = '3_days' } = req.query;
+    
+    console.log(`📧 [TEST] Testing advanced email template for birthday ${birthdayId}`);
+    
+    // Get birthday and user details
+    const [birthdays] = await db.execute(`
+      SELECT b.*, u.id as user_id, u.name as user_name, u.email as user_email,
+             uep.notification_frequency, uep.user_timezone
+      FROM birthdays b
+      JOIN users u ON b.user_id = u.id
+      LEFT JOIN user_email_preferences uep ON u.id = uep.user_id
+      WHERE b.id = ?
+    `, [birthdayId]);
+    
+    if (birthdays.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Birthday not found'
+      });
+    }
+    
+    const birthday = birthdays[0];
+    
+    // Create test reminder data
+    const reminderData = {
+      user_email: birthday.user_email,
+      user_name: birthday.user_name,
+      birthday_name: birthday.name,
+      birthday_date: birthday.date,
+      relationship: birthday.relationship,
+      bio: birthday.bio,
+      reminder_type: reminder_type,
+      user_id: birthday.user_id,
+      user_timezone: birthday.user_timezone || 'Asia/Kolkata'
+    };
+    
+    // Send the advanced email
+    const { sendBirthdayReminderEmail } = require('./services/emailService');
+    const result = await sendBirthdayReminderEmail(reminderData);
+    
+    if (result.success) {
+      res.json({
+        success: true,
+        message: `Advanced ${reminder_type.replace('_', '-')} email sent successfully!`,
+        data: {
+          birthday_name: birthday.name,
+          email_sent_to: birthday.user_email,
+          reminder_type: reminder_type,
+          message_id: result.messageId,
+          template_features: [
+            'Personalized greeting',
+            'Relationship-based messaging',
+            'Smart gift suggestions',
+            'Urgency-based styling',
+            'Mobile-responsive design'
+          ]
+        }
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: 'Failed to send advanced email',
+        error: result.error
+      });
+    }
+    
+  } catch (error) {
+    console.error('❌ [TEST] Advanced email test failed:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Basic email test endpoint
+app.get('/test-basic-email/:birthdayId', async (req, res) => {
+  try {
+    const { birthdayId } = req.params;
+    const { reminder_type = '3_days' } = req.query;
+    
+    console.log(`📧 [TEST] Testing basic email for birthday ${birthdayId}, type: ${reminder_type}`);
+    
+    // Get birthday and user details
+    const [birthdays] = await req.db.execute(`
+      SELECT b.*, u.id as user_id, u.name as user_name, u.email as user_email
+      FROM birthdays b
+      JOIN users u ON b.user_id = u.id
+      WHERE b.id = ?
+    `, [birthdayId]);
+    
+    if (birthdays.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Birthday not found'
+      });
+    }
+    
+    const birthday = birthdays[0];
+    
+    console.log(`📧 [TEST] Found birthday:`, {
+      name: birthday.name,
+      date: birthday.date,
+      user: birthday.user_name,
+      email: birthday.user_email
+    });
+    
+    // Create reminder data
+    const reminderData = {
+      user_email: birthday.user_email,
+      user_name: birthday.user_name,
+      birthday_name: birthday.name,
+      birthday_date: birthday.date,
+      relationship: birthday.relationship,
+      bio: birthday.bio,
+      reminder_type: reminder_type
+    };
+    
+    console.log(`📧 [TEST] Sending email with data:`, reminderData);
+    
+    // Send email using existing service
+    const { sendBirthdayReminderEmail } = require('./services/emailService');
+    const result = await sendBirthdayReminderEmail(reminderData);
+    
+    if (result.success) {
+      console.log(`✅ [TEST] Email sent successfully:`, result);
+      
+      res.json({
+        success: true,
+        message: `Test ${reminder_type.replace('_', '-')} email sent successfully! 📧`,
+        data: {
+          birthday_name: birthday.name,
+          email_sent_to: birthday.user_email,
+          reminder_type: reminder_type,
+          message_id: result.messageId,
+          user_name: birthday.user_name,
+          test_details: {
+            relationship: birthday.relationship,
+            bio: birthday.bio,
+            date: birthday.date
+          }
+        }
+      });
+    } else {
+      console.error(`❌ [TEST] Email failed:`, result);
+      
+      res.status(500).json({
+        success: false,
+        message: 'Failed to send test email',
+        error: result.error,
+        details: {
+          birthday_name: birthday.name,
+          email_target: birthday.user_email,
+          reminder_type: reminder_type
+        }
+      });
+    }
+    
+  } catch (error) {
+    console.error('❌ [TEST] Email test failed:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      message: 'Email test endpoint error'
+    });
+  }
+});
+
+// Get all birthdays for testing
+app.get('/list-birthdays-for-email-test', async (req, res) => {
+  try {
+    const [birthdays] = await db.execute(`
+      SELECT b.id, b.name, b.date, b.relationship, u.name as user_name, u.email as user_email
+      FROM birthdays b
+      JOIN users u ON b.user_id = u.id
+      ORDER BY b.name
+    `);
+    
+    res.json({
+      success: true,
+      message: `Found ${birthdays.length} birthdays for email testing`,
+      data: {
+        birthdays: birthdays,
+        test_urls: birthdays.map(b => ({
+          id: b.id,
+          name: b.name,
+          user: b.user_name,
+          test_url_1_day: `${req.protocol}://${req.get('host')}/test-advanced-email/${b.id}?reminder_type=1_day`,
+          test_url_3_days: `${req.protocol}://${req.get('host')}/test-advanced-email/${b.id}?reminder_type=3_days`,
+          test_url_7_days: `${req.protocol}://${req.get('host')}/test-advanced-email/${b.id}?reminder_type=7_days`
+        }))
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Error listing birthdays:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// 1. Smart Reminder Creation for specific user
+app.get('/api/smart/create-reminders/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    console.log(`🧠 [SMART] Creating intelligent reminders for user ${userId}`);
+    
+    // Get user's birthdays
+    const [birthdays] = await req.db.execute(`
+      SELECT b.*, u.name as user_name, u.email as user_email
+      FROM birthdays b
+      JOIN users u ON b.user_id = u.id
+      WHERE b.user_id = ?
+    `, [userId]);
+    
+    if (birthdays.length === 0) {
+      return res.json({
+        success: true,
+        message: 'No birthdays found for this user',
+        data: {
+          user_id: userId,
+          birthdays_processed: 0,
+          reminders_created: 0
+        }
+      });
+    }
+    
+    // Get user preferences
+    const { getUserEmailPreferences } = require('./services/reminderService');
+    const userPreferences = await getUserEmailPreferences(req.db, userId);
+    
+    // Process each birthday with smart scheduling
+    const results = [];
+    let totalReminders = 0;
+    
+    for (const birthday of birthdays) {
+      const result = await createSmartReminders(req.db, userId, birthday, userPreferences);
+      results.push(result);
+      if (result.success) {
+        totalReminders += result.remindersCreated;
+      }
+    }
+    
+    res.json({
+      success: true,
+      message: `Smart reminders created for user ${userId}`,
+      data: {
+        user_id: userId,
+        user_name: birthdays[0].user_name,
+        birthdays_processed: birthdays.length,
+        total_reminders_created: totalReminders,
+        individual_results: results,
+        preferences_used: {
+          reminders_enabled: userPreferences.birthday_reminders_enabled,
+          reminder_7_days: userPreferences.reminder_7_days,
+          reminder_3_days: userPreferences.reminder_3_days,
+          reminder_1_day: userPreferences.reminder_1_day
+        }
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ [SMART] Smart reminder creation failed:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      message: 'Failed to create smart reminders'
+    });
+  }
+});
+
+// 2. User Behavior Analytics
+app.get('/api/smart/analyze-behavior/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    console.log(`📊 [SMART] Analyzing behavior for user ${userId}`);
+    
+    const analysis = await optimizeReminderTiming(req.db, userId);
+    
+    // Get additional user stats
+    const [userStats] = await req.db.execute(`
+      SELECT 
+        u.name,
+        u.email,
+        COUNT(b.id) as total_birthdays,
+        COUNT(CASE WHEN er.status = 'sent' THEN 1 END) as successful_reminders,
+        COUNT(CASE WHEN er.status = 'failed' THEN 1 END) as failed_reminders,
+        COUNT(er.id) as total_reminders
+      FROM users u
+      LEFT JOIN birthdays b ON u.id = b.user_id
+      LEFT JOIN email_reminders er ON u.id = er.user_id
+      WHERE u.id = ?
+      GROUP BY u.id
+    `, [userId]);
+    
+    const stats = userStats[0] || { total_birthdays: 0, successful_reminders: 0, failed_reminders: 0, total_reminders: 0 };
+    
+    res.json({
+      success: true,
+      message: `Behavior analysis complete for user ${userId}`,
+      data: {
+        user_id: userId,
+        user_name: stats.name,
+        analysis_results: analysis,
+        user_statistics: {
+          total_birthdays: stats.total_birthdays,
+          total_reminders_sent: stats.total_reminders,
+          successful_reminders: stats.successful_reminders,
+          failed_reminders: stats.failed_reminders,
+          success_rate: stats.total_reminders > 0 ? 
+            `${((stats.successful_reminders / stats.total_reminders) * 100).toFixed(1)}%` : '0%'
+        },
+        analyzed_at: new Date().toISOString()
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ [SMART] Behavior analysis failed:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      message: 'Failed to analyze user behavior'
+    });
+  }
+});
+
+// 3. Personalized Insights Dashboard
+app.get('/api/smart/insights/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    console.log(`💡 [SMART] Generating insights for user ${userId}`);
+    
+    const insights = await generateReminderInsights(req.db, userId);
+    
+    // Get additional context
+    const [recentActivity] = await req.db.execute(`
+      SELECT er.reminder_type, er.status, er.sent_at, b.name as birthday_name, b.relationship
+      FROM email_reminders er
+      JOIN birthdays b ON er.birthday_id = b.id
+      WHERE er.user_id = ?
+      ORDER BY er.created_at DESC
+      LIMIT 10
+    `, [userId]);
+    
+    res.json({
+      success: true,
+      message: `Personalized insights generated for user ${userId}`,
+      data: {
+        user_id: userId,
+        insights: insights.insights,
+        recent_activity: recentActivity,
+        ai_recommendations: [
+          '🎯 Enable all reminder types for better coverage',
+          '📱 Check your email preferences for optimal timing',
+          '🎁 Add more bio information for better gift suggestions',
+          '📊 Regular engagement improves our recommendations'
+        ],
+        next_actions: insights.insights?.recommendedActions || [],
+        generated_at: insights.generated_at
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ [SMART] Insight generation failed:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      message: 'Failed to generate personalized insights'
+    });
+  }
+});
+
+// 4. Bulk Smart Processing for All Users
+app.get('/api/smart/process-all-users', async (req, res) => {
+  try {
+    console.log('🚀 [SMART] Starting bulk smart processing for all users...');
+    
+    // Get all active users
+    const [users] = await req.db.execute(`
+      SELECT DISTINCT u.id, u.name, u.email, COUNT(b.id) as birthday_count
+      FROM users u
+      LEFT JOIN birthdays b ON u.id = b.user_id
+      WHERE u.email_verified_at IS NOT NULL
+      GROUP BY u.id
+      HAVING birthday_count > 0
+      ORDER BY birthday_count DESC
+    `);
+    
+    console.log(`📊 [SMART] Processing ${users.length} users with birthdays`);
+    
+    const { getUserEmailPreferences } = require('./services/reminderService');
+    
+    const processingResults = [];
+    let totalRemindersCreated = 0;
+    let totalUsersProcessed = 0;
+    
+    for (const user of users) {
+      try {
+        console.log(`👤 [SMART] Processing user: ${user.name} (${user.birthday_count} birthdays)`);
+        
+        // Get user's birthdays
+        const [birthdays] = await req.db.execute(`
+          SELECT * FROM birthdays WHERE user_id = ?
+        `, [user.id]);
+        
+        // Get user preferences
+        const userPreferences = await getUserEmailPreferences(req.db, user.id);
+        
+        let userReminders = 0;
+        const userResults = [];
+        
+        // Process each birthday
+        for (const birthday of birthdays) {
+          const result = await createSmartReminders(req.db, user.id, birthday, userPreferences);
+          userResults.push(result);
+          if (result.success) {
+            userReminders += result.remindersCreated;
+          }
+        }
+        
+        totalRemindersCreated += userReminders;
+        totalUsersProcessed++;
+        
+        processingResults.push({
+          user_id: user.id,
+          user_name: user.name,
+          birthdays_count: birthdays.length,
+          reminders_created: userReminders,
+          success: true
+        });
+        
+      } catch (userError) {
+        console.error(`❌ [SMART] Failed to process user ${user.id}:`, userError);
+        processingResults.push({
+          user_id: user.id,
+          user_name: user.name,
+          error: userError.message,
+          success: false
+        });
+      }
+    }
+    
+    console.log(`✅ [SMART] Bulk processing complete: ${totalUsersProcessed} users, ${totalRemindersCreated} reminders`);
+    
+    res.json({
+      success: true,
+      message: `Bulk smart processing completed successfully`,
+      data: {
+        processing_summary: {
+          total_users_found: users.length,
+          users_processed_successfully: totalUsersProcessed,
+          total_reminders_created: totalRemindersCreated,
+          processing_time: new Date().toISOString()
+        },
+        individual_results: processingResults,
+        performance_metrics: {
+          average_reminders_per_user: totalUsersProcessed > 0 ? 
+            (totalRemindersCreated / totalUsersProcessed).toFixed(2) : 0,
+          success_rate: `${((totalUsersProcessed / users.length) * 100).toFixed(1)}%`
+        }
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ [SMART] Bulk processing failed:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      message: 'Bulk smart processing failed'
+    });
+  }
+});
+
+// 5. Real-time Recommendations for Specific Birthday
+app.get('/api/smart/recommendations/:birthdayId', async (req, res) => {
+  try {
+    const { birthdayId } = req.params;
+    console.log(`🎯 [SMART] Generating recommendations for birthday ${birthdayId}`);
+    
+    // Get birthday details
+    const [birthdays] = await req.db.execute(`
+      SELECT b.*, u.name as user_name, u.email as user_email
+      FROM birthdays b
+      JOIN users u ON b.user_id = u.id
+      WHERE b.id = ?
+    `, [birthdayId]);
+    
+    if (birthdays.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Birthday not found'
+      });
+    }
+    
+    const birthday = birthdays[0];
+    
+    // Calculate days until birthday
+    const today = new Date();
+    const birthdayDate = new Date(birthday.date);
+    const thisYear = today.getFullYear();
+    birthdayDate.setFullYear(thisYear);
+    
+    if (birthdayDate < today) {
+      birthdayDate.setFullYear(thisYear + 1);
+    }
+    
+    const daysUntil = Math.ceil((birthdayDate - today) / (1000 * 60 * 60 * 24));
+    
+    // Generate recommendations using our template service
+    const { generateGiftSuggestions, generateBirthdayMessage } = require('./services/advancedEmailTemplateService');
+    
+    const giftSuggestions = generateGiftSuggestions(birthday.relationship, birthday.bio);
+    const contextualMessage = generateBirthdayMessage(birthday.name, birthday.relationship, daysUntil, {});
+    
+    // Generate timing recommendations
+    const timingRecommendations = [];
+    if (daysUntil <= 1) {
+      timingRecommendations.push('🚨 URGENT: Same-day delivery or digital gifts recommended');
+      timingRecommendations.push('📱 Send a personal message or call immediately');
+    } else if (daysUntil <= 3) {
+      timingRecommendations.push('⚡ Quick action needed: 2-3 day shipping still possible');
+      timingRecommendations.push('🎁 Local pickup or experience gifts work great');
+    } else if (daysUntil <= 7) {
+      timingRecommendations.push('📦 Standard shipping will arrive in time');
+      timingRecommendations.push('🎉 Great time to plan something special');
+    } else {
+      timingRecommendations.push('⭐ Plenty of time for thoughtful planning');
+      timingRecommendations.push('💡 Consider unique or custom gifts');
+    }
+    
+    res.json({
+      success: true,
+      message: `Recommendations generated for ${birthday.name}`,
+      data: {
+        birthday_details: {
+          id: birthday.id,
+          name: birthday.name,
+          date: birthday.date,
+          relationship: birthday.relationship,
+          bio: birthday.bio,
+          days_until: daysUntil
+        },
+        gift_suggestions: giftSuggestions,
+        timing_recommendations: timingRecommendations,
+        contextual_message: contextualMessage,
+        urgency_level: daysUntil <= 1 ? 'critical' : 
+                      daysUntil <= 3 ? 'high' : 
+                      daysUntil <= 7 ? 'medium' : 'low',
+        recommended_actions: [
+          daysUntil <= 1 ? 'Take immediate action' : 'Plan ahead',
+          'Check gift suggestions above',
+          'Set calendar reminder',
+          'Consider personal preferences'
+        ],
+        generated_at: new Date().toISOString()
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ [SMART] Recommendation generation failed:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      message: 'Failed to generate recommendations'
+    });
+  }
+});
+
+// Enhanced Production Health Check
+app.get('/health', async (req, res) => {
+  try {
+    const healthCheck = {
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      environment: process.env.NODE_ENV || 'development',
+      version: require('./package.json').version || '1.0.0',
+      services: {
+        database: 'checking...',
+        email: 'checking...',
+        smartScheduling: 'checking...'
+      },
+      metrics: {
+        memoryUsage: process.memoryUsage(),
+        cpuUsage: process.cpuUsage(),
+        activeConnections: 'calculating...'
+      }
+    };
+
+    // Test database connection
+    try {
+      await req.db.execute('SELECT 1');
+      healthCheck.services.database = 'healthy';
+    } catch (dbError) {
+      healthCheck.services.database = 'unhealthy';
+      healthCheck.status = 'degraded';
+    }
+
+    // Test email service
+    try {
+      const nodemailer = require('nodemailer');
+      const transporter = nodemailer.createTransporter({
+        service: 'gmail',
+        auth: {
+          user: process.env.EMAIL_USER,
+          pass: process.env.EMAIL_PASS
+        }
+      });
+      await transporter.verify();
+      healthCheck.services.email = 'healthy';
+    } catch (emailError) {
+      healthCheck.services.email = 'degraded';
+    }
+
+    // Test smart scheduling
+    try {
+      const { generateReminderInsights } = require('./services/smartSchedulingService');
+      healthCheck.services.smartScheduling = 'healthy';
+    } catch (smartError) {
+      healthCheck.services.smartScheduling = 'degraded';
+      healthCheck.status = 'degraded';
+    }
+
+    // Get system metrics
+    const [userCount] = await req.db.execute('SELECT COUNT(*) as count FROM users');
+    const [birthdayCount] = await req.db.execute('SELECT COUNT(*) as count FROM birthdays');
+    const [reminderCount] = await req.db.execute('SELECT COUNT(*) as count FROM email_reminders');
+
+    healthCheck.metrics = {
+      ...healthCheck.metrics,
+      totalUsers: userCount[0].count,
+      totalBirthdays: birthdayCount[0].count,
+      totalReminders: reminderCount[0].count,
+      memoryUsageMB: Math.round(process.memoryUsage().heapUsed / 1024 / 1024)
+    };
+
+    const statusCode = healthCheck.status === 'healthy' ? 200 : 
+                      healthCheck.status === 'degraded' ? 200 : 503;
+
+    res.status(statusCode).json(healthCheck);
+
+  } catch (error) {
+    res.status(503).json({
+      status: 'unhealthy',
+      timestamp: new Date().toISOString(),
+      error: error.message
+    });
+  }
+});
+
+// Production Metrics Endpoint
+app.get('/metrics', async (req, res) => {
+  try {
+    const [stats] = await req.db.execute(`
+      SELECT 
+        (SELECT COUNT(*) FROM users WHERE email_verified_at IS NOT NULL) as verified_users,
+        (SELECT COUNT(*) FROM birthdays) as total_birthdays,
+        (SELECT COUNT(*) FROM email_reminders WHERE status = 'sent') as emails_sent,
+        (SELECT COUNT(*) FROM email_reminders WHERE status = 'failed') as emails_failed,
+        (SELECT COUNT(*) FROM email_reminders WHERE created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)) as reminders_24h,
+        (SELECT COUNT(*) FROM users WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)) as new_users_7d
+    `);
+
+    const metrics = {
+      timestamp: new Date().toISOString(),
+      system: {
+        uptime_seconds: process.uptime(),
+        memory_heap_used_mb: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
+        memory_heap_total_mb: Math.round(process.memoryUsage().heapTotal / 1024 / 1024),
+        memory_external_mb: Math.round(process.memoryUsage().external / 1024 / 1024)
+      },
+      application: {
+        verified_users: stats[0].verified_users,
+        total_birthdays: stats[0].total_birthdays,
+        emails_sent_total: stats[0].emails_sent,
+        emails_failed_total: stats[0].emails_failed,
+        success_rate: stats[0].emails_sent > 0 ? 
+          ((stats[0].emails_sent / (stats[0].emails_sent + stats[0].emails_failed)) * 100).toFixed(2) + '%' : '0%',
+        reminders_created_24h: stats[0].reminders_24h,
+        new_users_7d: stats[0].new_users_7d
+      }
+    };
+
+    res.json(metrics);
+
+  } catch (error) {
+    res.status(500).json({
+      error: 'Failed to collect metrics',
+      message: error.message
+    });
   }
 });
 
