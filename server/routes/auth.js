@@ -88,6 +88,22 @@ router.post('/register', async (req, res) => {
 
     const userId = result.insertId;
 
+    // Create default email preferences for new user
+    try {
+      await req.db.execute(`
+        INSERT INTO user_email_preferences 
+        (user_id, birthday_reminders_enabled, reminder_7_days, reminder_3_days, reminder_1_day,
+         reminder_14_days, reminder_time_7_days, reminder_time_3_days, reminder_time_1_day, 
+         user_timezone, notification_frequency) 
+        VALUES (?, TRUE, TRUE, TRUE, TRUE, FALSE, '09:00:00', '09:00:00', '09:00:00', 'Asia/Kolkata', 'standard')
+      `, [userId]);
+      
+      console.log(`✅ Created default email preferences for new user ${userId}`);
+    } catch (prefError) {
+      console.error('⚠️ Error creating default preferences (non-critical):', prefError);
+      // Don't fail registration if preferences creation fails
+    }
+
     // Generate verification token
     const verificationToken = generateVerificationToken();
     const expirationTime = getExpirationTime();

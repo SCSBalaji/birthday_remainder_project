@@ -5,7 +5,17 @@
   "license": "MIT",
   "scripts": {
     "dev": "nodemon index.js",
-    "start": "node index.js"
+    "start": "node index.js",
+    "prod": "NODE_ENV=production node index.js",
+    "build": "echo 'Build completed for Birthday Buddy'",
+    "test": "echo 'Tests will be added here'",
+    "deploy": "npm run build && npm run start",
+    "health": "curl -f http://localhost:5000/health || exit 1",
+    "db:migrate": "node scripts/migrate.js",
+    "db:seed": "node scripts/seed.js",
+    "logs": "pm2 logs birthday-buddy",
+    "restart": "pm2 restart birthday-buddy",
+    "stop": "pm2 stop birthday-buddy"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

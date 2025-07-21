@@ -5,6 +5,7 @@ import SignInPage from "./SignInPage";
 import ForgotPasswordPage from "./ForgotPasswordPage";
 import ResetPasswordPage from "./ResetPasswordPage";
 import VerifyEmailPage from "./VerifyEmailPage";
+import EmailPreferencesPage from "./EmailPreferencesPage";
 import ResendVerificationPage from "./ResendVerificationPage";
 import CalendarView from "./CalendarView";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
@@ -96,6 +97,7 @@ export default function App() {
       <Router>
         <Routes>
           <Route path="/" element={<ProtectedRoute><BirthdayBuddyHome /></ProtectedRoute>} />
+          <Route path="/preferences" element={<ProtectedRoute><EmailPreferencesPage /></ProtectedRoute>} />
           <Route path="/signup" element={<SignUpPage />} />
           <Route path="/signin" element={<SignInPage />} />
           <Route path="/verify-email" element={<VerifyEmailPage />} />
@@ -332,6 +334,13 @@ function BirthdayBuddyHome() {
           >
             <span role="img" aria-label="Cake">🎂</span>
             Add Birthday
+          </button>
+          <button 
+            onClick={() => window.location.href = '/preferences'} 
+            className="add-birthday-btn" 
+            style={{ marginLeft: '10px' }}
+          >
+            ⚙️ Settings
           </button>
           <button onClick={logout} className="add-birthday-btn" style={{ marginLeft: '10px' }}>
             👋 Logout ({user?.name})
