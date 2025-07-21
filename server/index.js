@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const cron = require('node-cron');
 const mysql = require('mysql2/promise');
 require('dotenv').config();
 
@@ -252,6 +253,61 @@ async function startCleanupScheduler() {
   // Initial cleanup on startup
   if (db) {
     await cleanExpiredTokens(db);
+  }
+}
+
+// Automated Birthday Reminder System
+async function startBirthdayReminderScheduler() {
+  console.log('🎂 Starting Birthday Reminder Scheduler...');
+  
+// Schedule to run daily at 12:00 AM IST (6:30 PM UTC)
+    cron.schedule('30 18 * * *', async () => {
+    console.log('🕘 [CRON] Running daily birthday reminder check at', new Date().toISOString());
+    
+    try {
+      if (!db) {
+        console.error('❌ [CRON] Database not available');
+        return;
+      }
+      
+      const { createRemindersForAllBirthdays, processPendingReminders } = require('./services/birthdayReminderService');
+      
+      console.log('📅 [CRON] Step 1: Creating new reminders for upcoming birthdays...');
+      const remindersCreated = await createRemindersForAllBirthdays(db);
+      
+      console.log('📧 [CRON] Step 2: Processing and sending pending reminders...');
+      const sendResults = await processPendingReminders(db);
+      
+      console.log('✅ [CRON] Daily reminder job completed:', {
+        reminders_created: remindersCreated,
+        emails_sent: sendResults.sent,
+        emails_failed: sendResults.failed,
+        timestamp: new Date().toISOString()
+      });
+      
+    } catch (error) {
+      console.error('❌ [CRON] Birthday reminder job failed:', error);
+    }
+  }, {
+    scheduled: true,
+    timezone: "UTC"
+  });
+  
+  console.log('✅ Birthday reminder cron job scheduled (daily at 12:00 AM IST / 6:30 PM UTC)');
+  
+  // Optional: Run once on startup for testing
+  console.log('🧪 Running initial birthday reminder check...');
+  try {
+    const { createRemindersForAllBirthdays, processPendingReminders } = require('./services/birthdayReminderService');
+    const remindersCreated = await createRemindersForAllBirthdays(db);
+    const sendResults = await processPendingReminders(db);
+    console.log('✅ Initial reminder check completed:', {
+      reminders_created: remindersCreated,
+      emails_sent: sendResults.sent,
+      emails_failed: sendResults.failed
+    });
+  } catch (error) {
+    console.error('❌ Initial reminder check failed:', error);
   }
 }
 
@@ -799,6 +855,7 @@ app.listen(PORT, '0.0.0.0', async () => {
   console.log(`🔗 Access via: http://localhost:${PORT} or http://127.0.0.1:${PORT}`);
   await connectToDatabase();
   await startCleanupScheduler();
+  await startBirthdayReminderScheduler(); // <-- Add this line
 });
 
 // Debug email reminders table
@@ -858,3 +915,137 @@ app.get('/clear-email-reminders', async (req, res) => {
     });
   }
 });
+
+// Helper function to check and send immediate reminders for a specific birthday
+async function checkImmediateReminders(birthdayId, userId) {
+  try {
+    console.log(`🎂 [IMMEDIATE] Checking immediate reminders for birthday ID: ${birthdayId}`);
+    
+    if (!db) {
+      console.error('❌ [IMMEDIATE] Database not available');
+      return { success: false, error: 'Database not available' };
+    }
+    
+    // Get the specific birthday details
+    const [birthdays] = await db.execute(`
+      SELECT b.*, u.id as user_id, u.name as user_name, u.email as user_email
+      FROM birthdays b
+      JOIN users u ON b.user_id = u.id
+      WHERE b.id = ? AND b.user_id = ?
+    `, [birthdayId, userId]);
+    
+    if (birthdays.length === 0) {
+      console.log('⚠️ [IMMEDIATE] Birthday not found');
+      return { success: false, error: 'Birthday not found' };
+    }
+    
+    const birthday = birthdays[0];
+    console.log(`🔍 [IMMEDIATE] Processing birthday: ${birthday.name} (${birthday.date})`);
+    
+    const { calculateDaysUntilBirthday } = require('./services/birthdayReminderService');
+    const daysUntil = calculateDaysUntilBirthday(birthday.date);
+    
+    console.log(`📅 [IMMEDIATE] Days until birthday: ${daysUntil}`);
+    
+    // Check if we need to create immediate reminders (1, 3, or 7 days)
+    const reminderTypes = [
+      { type: '7_days', days: 7 },
+      { type: '3_days', days: 3 },
+      { type: '1_day', days: 1 }
+    ];
+    
+    // Import functions outside the loop
+    const { createEmailReminder, markReminderAsSent } = require('./services/reminderService');
+    const { sendBirthdayReminderEmail } = require('./services/emailService');
+    const today = new Date().toISOString().split('T')[0];
+    
+    let remindersCreated = 0;
+    let emailsSent = 0;
+    
+    for (const reminderType of reminderTypes) {
+      if (daysUntil === reminderType.days) {
+        console.log(`✅ [IMMEDIATE] Creating ${reminderType.type} reminder for ${birthday.name}`);
+        
+        // Create the reminder
+        const reminderId = await createEmailReminder(
+          db,
+          birthday.user_id,
+          birthday.id,
+          reminderType.type,
+          today
+        );
+        
+        if (reminderId) {
+          remindersCreated++;
+          console.log(`✅ [IMMEDIATE] Created ${reminderType.type} reminder (ID: ${reminderId})`);
+          
+          // ✨ FIX: Send only this specific reminder, not all pending ones
+          try {
+            // Get the specific reminder we just created
+            const [specificReminder] = await db.execute(`
+              SELECT er.*, b.name as birthday_name, b.date as birthday_date, b.relationship, b.bio,
+                     u.name as user_name, u.email as user_email,
+                     uep.birthday_reminders_enabled, uep.reminder_7_days, uep.reminder_3_days, uep.reminder_1_day
+              FROM email_reminders er
+              JOIN birthdays b ON er.birthday_id = b.id
+              JOIN users u ON er.user_id = u.id
+              LEFT JOIN user_email_preferences uep ON er.user_id = uep.user_id
+              WHERE er.id = ?
+            `, [reminderId]);
+            
+            if (specificReminder.length > 0) {
+              const reminder = specificReminder[0];
+              console.log(`📧 [IMMEDIATE] Sending specific reminder: ${reminder.reminder_type} for ${reminder.birthday_name}`);
+              
+              // Send the specific email
+              const emailResult = await sendBirthdayReminderEmail(reminder);
+              
+              if (emailResult.success) {
+                await markReminderAsSent(db, reminderId);
+                emailsSent++;
+                console.log(`✅ [IMMEDIATE] Email sent successfully for ${reminder.birthday_name}`);
+              } else {
+                console.log(`❌ [IMMEDIATE] Email failed for ${reminder.birthday_name}: ${emailResult.error}`);
+              }
+            }
+            
+          } catch (emailError) {
+            console.error('❌ [IMMEDIATE] Error sending specific email:', emailError);
+          }
+        }
+      }
+    }
+    
+    const result = {
+      success: true,
+      birthday_name: birthday.name,
+      days_until: daysUntil,
+      reminders_created: remindersCreated,
+      emails_sent: emailsSent
+    };
+    
+    console.log(`✅ [IMMEDIATE] Immediate reminder check completed:`, result);
+    return result;
+    
+  } catch (error) {
+    console.error('❌ [IMMEDIATE] Error in immediate reminder check:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Immediate reminder test route
+app.get('/test-immediate-reminders/:birthdayId', async (req, res) => {
+  const { birthdayId } = req.params;
+  const userId = 1; // For testing, use a fixed user ID (change as needed)
+  
+  try {
+    const result = await checkImmediateReminders(birthdayId, userId);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+module.exports = {
+  checkImmediateReminders
+};
